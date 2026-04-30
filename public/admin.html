@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>管理后台</title>
+  <style>
+    :root {
+      --bg: #f7f4ef;
+      --surface: #ffffff;
+      --surface-soft: #f8f6f2;
+      --text: #2f241c;
+      --text-soft: #7a6758;
+      --primary: #c4682c;
+      --primary-deep: #8f4518;
+      --border: rgba(104, 76, 43, 0.12);
+      --danger: #d9485f;
+      --shadow: 0 16px 40px rgba(34, 26, 18, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background: linear-gradient(180deg, #fbf8f3 0%, var(--bg) 100%);
+    }
+
+    .hidden { display: none !important; }
+    .app-shell { min-height: 100vh; }
+
+    /* ─── 顶栏 ─── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      height: 56px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.8);
+      backdrop-filter: blur(16px);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .topbar-left { display: flex; align-items: center; gap: 12px; }
+    .brand-title { font-size: 18px; font-weight: 700; }
+    .menu-toggle {
+      display: none;
+      background: none;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      padding: 4px 8px;
+      line-height: 1;
+      color: var(--text);
+    }
+    .topbar-actions { display: flex; gap: 12px; align-items: center; }
+
+    /* ─── 三段式主体 ─── */
+    .admin-body {
+      display: flex;
+      min-height: calc(100vh - 56px);
+      position: relative;
+    }
+
+    /* ─── 侧边栏 ─── */
+    .sidebar {
+      width: 200px;
+      flex-shrink: 0;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 16px 0;
+      overflow-y: auto;
+    }
+    .sidebar-nav { display: flex; flex-direction: column; gap: 2px; }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 20px;
+      cursor: pointer;
+      font-size: 14px;
+      border-radius: 0 12px 12px 0;
+      margin-right: 12px;
+      color: var(--text-soft);
+      transition: all 0.15s;
+      user-select: none;
+    }
+    .nav-item:hover { background: var(--surface-soft); color: var(--text); }
+    .nav-item.active {
+      background: rgba(196, 104, 44, 0.1);
+      color: var(--primary-deep);
+      font-weight: 600;
+    }
+    .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+
+    /* ─── 遮罩（移动端） ─── */
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 40;
+    }
+    .sidebar-overlay.show { display: block; }
+
+    /* ─── 内容区 ─── */
+    .admin-main {
+      flex: 1;
+      padding: 28px;
+      overflow-y: auto;
+      min-width: 0;
+    }
+    .page-title {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 20px;
+    }
+    .admin-page.hidden { display: none; }
+
+    /* ─── 通用组件 ─── */
+    .btn, .input {
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      font-size: 14px;
+    }
+    .btn {
+      padding: 11px 16px;
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary-deep) 0%, var(--primary) 100%);
+      color: #fff;
+      border: none;
+    }
+    .btn-danger {
+      color: var(--danger);
+      border-color: rgba(217, 72, 95, 0.22);
+      background: #fff;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+    }
+    .stat-card { padding: 20px; }
+    .stat-label { color: var(--text-soft); font-size: 13px; }
+    .stat-value { font-size: 30px; font-weight: 700; margin-top: 10px; }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 20px 22px;
+      border-bottom: 1px solid var(--border);
+    }
+    .panel-title { font-size: 18px; font-weight: 700; }
+    .toolbar { display: flex; gap: 12px; }
+    .input {
+      min-width: 220px;
+      padding: 11px 14px;
+      background: #fff;
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 16px 22px; text-align: left; border-bottom: 1px solid rgba(104, 76, 43, 0.08); }
+    th { color: var(--text-soft); font-size: 12px; font-weight: 600; }
+    td { font-size: 14px; vertical-align: top; }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .badge-admin { background: rgba(196, 104, 44, 0.12); color: var(--primary-deep); }
+    .actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .empty { padding: 28px; text-align: center; color: var(--text-soft); }
+    .message { margin-bottom: 16px; padding: 14px 16px; border-radius: 16px; font-size: 14px; }
+    .message.error { background: rgba(217, 72, 95, 0.1); color: var(--danger); }
+    .message.success { background: rgba(74, 160, 90, 0.12); color: #2f7a3f; }
+
+    .settings-card .settings-body { padding: 20px 22px; }
+    .key-row { display: flex; gap: 10px; align-items: center; }
+    .key-row .input { flex: 1; min-width: 0; }
+    #keyStatus { margin-bottom: 14px; font-size: 13px; color: var(--text-soft); }
+
+    /* ─── 登录 ─── */
+    .auth-wrap {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .auth-card { width: 100%; max-width: 420px; padding: 28px; }
+    .auth-card h1 { margin: 0 0 8px; }
+    .auth-card p { margin: 0 0 24px; color: var(--text-soft); }
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; margin-bottom: 8px; font-size: 13px; color: var(--text-soft); }
+    .form-group .input { width: 100%; min-width: 0; }
+
+    /* ─── 弹窗 ─── */
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(30, 22, 14, 0.44);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      z-index: 60;
+    }
+    .modal.open { display: flex; }
+    .modal-card { width: 100%; max-width: 460px; padding: 24px; }
+    .modal-title { margin: 0 0 20px; font-size: 20px; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+    .checkbox-row { display: flex; align-items: center; gap: 10px; margin-top: 6px; color: var(--text-soft); }
+
+    /* ─── 响应式 ─── */
+    @media (max-width: 960px) {
+      .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .panel-header { flex-direction: column; align-items: stretch; }
+      .toolbar { flex-direction: column; }
+      .input { min-width: 0; width: 100%; }
+      .table-scroll { overflow-x: auto; }
+      .topbar { padding: 0 16px; }
+      .admin-main { padding: 16px; }
+    }
+
+    @media (max-width: 768px) {
+      .menu-toggle { display: block; }
+      .sidebar {
+        position: fixed;
+        left: -220px;
+        top: 0;
+        height: 100vh;
+        width: 200px;
+        z-index: 45;
+        transition: left 0.25s ease;
+        padding-top: 64px;
+        box-shadow: 4px 0 20px rgba(0,0,0,0.1);
+      }
+      .sidebar.open { left: 0; }
+      .admin-main { padding: 16px; }
+    }
+
+    @media (max-width: 640px) {
+      .stats-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ─── 登录 ─── -->
+<div id="authView" class="auth-wrap">
+  <div class="auth-card card">
+    <h1>管理员登录</h1>
+    <p>使用管理员账号登录后可管理用户点数、密码与权限。</p>
+    <div id="authMessage" class="message error hidden"></div>
+    <form id="loginForm">
+      <div class="form-group">
+        <label for="username">用户名</label>
+        <input class="input" id="username" type="text" autocomplete="username" required>
+      </div>
+      <div class="form-group">
+        <label for="password">密码</label>
+        <input class="input" id="password" type="password" autocomplete="current-password" required>
+      </div>
+      <button class="btn btn-primary" id="loginSubmit" type="submit" style="width:100%;">登录后台</button>
+    </form>
+  </div>
+</div>
+
+<!-- ─── 管理后台三段式布局 ─── -->
+<div id="adminView" class="app-shell hidden">
+  <!-- 顶栏 -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="menu-toggle" id="menuToggle" type="button">☰</button>
+      <div class="brand-title">管理后台</div>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn" id="backHomeBtn" type="button">返回首页</button>
+      <button class="btn" id="logoutBtn" type="button">退出</button>
+    </div>
+  </div>
+
+  <div class="admin-body">
+    <!-- 遮罩（移动端） -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- 侧边栏 -->
+    <aside class="sidebar" id="sidebar">
+      <nav class="sidebar-nav">
+        <div class="nav-item active" data-page="overview">
+          <span class="nav-icon">📊</span>
+          <span class="nav-text">概览</span>
+        </div>
+        <div class="nav-item" data-page="users">
+          <span class="nav-icon">👥</span>
+          <span class="nav-text">用户管理</span>
+        </div>
+        <div class="nav-item" data-page="settings">
+          <span class="nav-icon">⚙️</span>
+          <span class="nav-text">系统设置</span>
+        </div>
+      </nav>
+    </aside>
+
+    <!-- 内容区 -->
+    <main class="admin-main" id="adminMain">
+      <div id="pageMessage" class="message hidden"></div>
+
+      <!-- 概览页 -->
+      <div class="admin-page" id="pageOverview">
+        <div class="page-title">概览</div>
+        <div class="stats-grid">
+          <div class="card stat-card"><div class="stat-label">总用户数</div><div class="stat-value" id="statUsers">-</div></div>
+          <div class="card stat-card"><div class="stat-label">总点数余额</div><div class="stat-value" id="statPoints">-</div></div>
+          <div class="card stat-card"><div class="stat-label">总生成次数</div><div class="stat-value" id="statGenerations">-</div></div>
+          <div class="card stat-card"><div class="stat-label">总订单数</div><div class="stat-value" id="statOrders">-</div></div>
+        </div>
+      </div>
+
+      <!-- 用户管理页 -->
+      <div class="admin-page hidden" id="pageUsers">
+        <div class="page-title">用户管理</div>
+        <div class="card">
+          <div class="panel-header">
+            <div class="panel-title">用户列表</div>
+            <div class="toolbar">
+              <input class="input" id="searchInput" type="search" placeholder="搜索用户名">
+              <button class="btn btn-primary" id="createUserBtn" type="button">新建用户</button>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>用户</th>
+                  <th>点数</th>
+                  <th>生成/订单</th>
+                  <th>创建时间</th>
+                  <th style="text-align:right;">操作</th>
+                </tr>
+              </thead>
+              <tbody id="userTableBody"></tbody>
+            </table>
+          </div>
+          <div id="emptyState" class="empty hidden">没有匹配到用户</div>
+        </div>
+      </div>
+
+      <!-- 系统设置页 -->
+      <div class="admin-page hidden" id="pageSettings">
+        <div class="page-title">系统设置</div>
+  <div class="card settings-card">
+  <div class="panel-header">
+  <div class="panel-title">GPT Image Key</div>
+  </div>
+  <div class="settings-body">
+  <div id="keyStatus">当前状态：检查中...</div>
+  <div class="key-row">
+  <input class="input" id="openaiApiKey" type="password" placeholder="输入新的 API Key">
+  <button class="btn btn-primary" id="saveKeyBtn" type="button">保存</button>
+  <button class="btn btn-danger" id="clearKeyBtn" type="button">清除</button>
+  </div>
+  </div>
+  </div>
+  <div class="card settings-card" style="margin-top:16px">
+  <div class="panel-header">
+  <div class="panel-title">API Base URL</div>
+  </div>
+  <div class="settings-body">
+  <div id="baseUrlStatus">当前状态：检查中...</div>
+  <div class="key-row">
+  <input class="input" id="openaiBaseUrl" type="text" placeholder="例如 https://grsai.dakka.com.cn">
+  <button class="btn btn-primary" id="saveBaseUrlBtn" type="button">保存</button>
+  <button class="btn btn-danger" id="clearBaseUrlBtn" type="button">清除</button>
+  </div>
+  </div>
+  </div>
+  <div class="card settings-card" style="margin-top:16px">
+  <div class="panel-header">
+  <div class="panel-title">图床 API Key（imgbb）</div>
+  </div>
+  <div class="settings-body">
+  <div id="imageHostStatus">当前状态：检查中...</div>
+  <div class="key-row">
+  <input class="input" id="imageHostToken" type="password" placeholder="输入 imgbb API Key">
+  <button class="btn btn-primary" id="saveImageHostBtn" type="button">保存</button>
+  <button class="btn btn-danger" id="clearImageHostBtn" type="button">清除</button>
+  </div>
+  <div style="margin-top:8px;font-size:12px;color:#888;">用于参考图上传，<a href="https://api.imgbb.com/" target="_blank">获取 API Key</a></div>
+  </div>
+  </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- 用户编辑弹窗 -->
+<div class="modal" id="userModal">
+  <div class="modal-card card">
+    <h2 class="modal-title" id="modalTitle">新建用户</h2>
+    <form id="userForm">
+      <input id="editUserId" type="hidden">
+      <div class="form-group">
+        <label for="editUsername">用户名</label>
+        <input class="input" id="editUsername" type="text" required>
+      </div>
+      <div class="form-group">
+        <label for="editPassword">密码</label>
+        <input class="input" id="editPassword" type="password" placeholder="编辑时留空表示不修改">
+      </div>
+      <div class="form-group">
+        <label for="editPoints">点数</label>
+        <input class="input" id="editPoints" type="number" min="0" required>
+      </div>
+      <label class="checkbox-row"><input id="editIsAdmin" type="checkbox"> 设为管理员</label>
+      <div class="modal-actions">
+        <button class="btn" id="cancelModalBtn" type="button">取消</button>
+        <button class="btn btn-primary" type="submit">保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+const API_BASE = '/api';
+let authToken = localStorage.getItem('token') || '';
+let users = [];
+let authExpiredNotified = false;
+let settingsLoaded = false;
+
+const $ = id => document.getElementById(id);
+
+const HTML_ESCAPE_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+
+function setText(id, value) {
+  const el = $(id);
+  if (el) el.textContent = value;
+}
+
+function setValue(id, value) {
+  const el = $(id);
+  if (el) el.value = value;
+}
+
+function toggleClass(id, className, force) {
+  const el = $(id);
+  if (el) el.classList.toggle(className, force);
+}
+
+function addClass(id, className) {
+  const el = $(id);
+  if (el) el.classList.add(className);
+}
+
+function removeClass(id, className) {
+  const el = $(id);
+  if (el) el.classList.remove(className);
+}
+
+function setMessage(targetId, message, type = 'error') {
+  const el = $(targetId);
+  if (!el) return;
+  if (!message) {
+    el.className = 'message hidden';
+    el.textContent = '';
+    return;
+  }
+  el.className = `message ${type}`;
+  el.textContent = message;
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, char => HTML_ESCAPE_MAP[char]);
+}
+
+function formatDate(value) {
+  return value ? new Date(value).toLocaleString() : '--';
+}
+
+/* ─── 页面切换 ─── */
+function switchPage(pageName) {
+  document.querySelectorAll('.admin-page').forEach(p => p.classList.add('hidden'));
+  const pageId = 'page' + pageName.charAt(0).toUpperCase() + pageName.slice(1);
+  const pageEl = $(pageId);
+  if (pageEl) pageEl.classList.remove('hidden');
+
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.classList.toggle('active', item.dataset.page === pageName);
+  });
+
+  closeSidebar();
+
+  if (pageName === 'settings' && !settingsLoaded) {
+    loadSettings();
+    settingsLoaded = true;
+  }
+}
+
+/* ─── 侧边栏开关 ─── */
+function openSidebar() {
+  $('sidebar')?.classList.add('open');
+  $('sidebarOverlay')?.classList.add('show');
+}
+
+function closeSidebar() {
+  $('sidebar')?.classList.remove('open');
+  $('sidebarOverlay')?.classList.remove('show');
+}
+
+/* ─── API ─── */
+async function request(endpoint, options = {}) {
+  const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+  if (authToken) headers.Authorization = `Bearer ${authToken}`;
+
+  const response = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
+  let data = null;
+  try {
+    data = await response.json();
+  } catch (error) {
+    throw new Error('服务器响应异常');
+  }
+
+  if (data.code === 401) {
+    authExpiredNotified = true;
+    throw new Error('登录状态校验失败，请重新登录');
+  }
+
+  return data;
+}
+
+/* ─── 鉴权 ─── */
+async function ensureAdmin() {
+  if (!authToken) return showAuth();
+
+  try {
+    const result = await request('/user/info');
+    if (result.code !== 0 || !result.data.is_admin) {
+      setMessage('authMessage', '当前账号没有后台管理权限');
+      return showAuth();
+    }
+
+    addClass('authView', 'hidden');
+    removeClass('adminView', 'hidden');
+    authExpiredNotified = false;
+    switchPage('overview');
+    await Promise.all([loadStats(), loadUsers()]);
+  } catch (error) {
+    setMessage('authMessage', error.message || '鉴权失败');
+    showAuth();
+  }
+}
+
+function showAuth() {
+  addClass('adminView', 'hidden');
+  removeClass('authView', 'hidden');
+}
+
+function logout() {
+  request('/auth/logout', { method: 'POST' });
+  authToken = '';
+  authExpiredNotified = false;
+  settingsLoaded = false;
+  localStorage.removeItem('token');
+  showAuth();
+}
+
+/* ─── 数据加载 ─── */
+async function loadStats() {
+  const result = await request('/admin/stats');
+  if (result.code !== 0) throw new Error(result.message || '加载统计失败');
+  setText('statUsers', result.data.totalUsers);
+  setText('statPoints', result.data.totalPoints);
+  setText('statGenerations', result.data.totalGenerations);
+  setText('statOrders', result.data.totalOrders);
+}
+
+async function loadUsers() {
+  const result = await request('/admin/users');
+  if (result.code !== 0) throw new Error(result.message || '加载用户失败');
+  users = result.data;
+  renderUsers();
+}
+
+async function loadSettings() {
+  const result = await request('/admin/settings');
+  if (result.code !== 0) throw new Error(result.message || '加载设置失败');
+  setText('keyStatus', result.data.hasOpenAiKey
+    ? `当前状态：已配置（${result.data.maskedOpenAiKey}）`
+    : '当前状态：未配置后台 Key，将回退到环境变量');
+  setValue('openaiApiKey', '');
+  const baseUrl = result.data.openaiBaseUrl || '';
+  setText('baseUrlStatus', baseUrl
+    ? `当前状态：${baseUrl}`
+    : '当前状态：未配置，将回退到环境变量');
+  setValue('openaiBaseUrl', '');
+  setText('imageHostStatus', result.data.hasImageHostToken
+    ? `当前状态：已配置（${result.data.maskedImageHostToken}）`
+    : '当前状态：未配置');
+  setValue('imageHostToken', '');
+}
+
+/* ─── 渲染 ─── */
+function renderUsers() {
+  const keyword = $('searchInput').value.trim().toLowerCase();
+  const filteredUsers = users.filter(user => {
+    if (!keyword) return true;
+    return user.username.toLowerCase().includes(keyword);
+  });
+
+  toggleClass('emptyState', 'hidden', filteredUsers.length > 0);
+
+  const tableBody = $('userTableBody');
+  if (!tableBody) return;
+
+  tableBody.innerHTML = filteredUsers.map(user => {
+    const nameHtml = escapeHtml(user.username) + (user.is_admin ? ' <span class="badge badge-admin">管理员</span>' : '');
+    return `
+      <tr>
+        <td>${nameHtml}</td>
+        <td>${user.points}</td>
+        <td>${user.generate_count} / ${user.order_count}</td>
+        <td>${formatDate(user.created_at)}</td>
+        <td>
+          <div class="actions">
+            <button class="btn" type="button" onclick="editUser(${user.id})">编辑</button>
+            <button class="btn btn-danger" type="button" onclick="removeUser(${user.id})">删除</button>
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+/* ─── 弹窗 ─── */
+function openModal(user = null) {
+  $('userForm') && $('userForm').reset();
+  setValue('editUserId', user ? user.id : '');
+  setValue('editUsername', user ? user.username : '');
+  setValue('editPoints', user ? user.points : 0);
+  if ($('editIsAdmin')) $('editIsAdmin').checked = Boolean(user && user.is_admin);
+  if ($('editUsername')) $('editUsername').disabled = Boolean(user);
+  if ($('editPassword')) $('editPassword').placeholder = user ? '留空表示不修改密码' : '请输入登录密码';
+  setText('modalTitle', user ? '编辑用户' : '新建用户');
+  addClass('userModal', 'open');
+}
+
+function closeModal() {
+  removeClass('userModal', 'open');
+}
+
+window.editUser = function editUser(userId) {
+  const user = users.find(item => item.id === userId);
+  if (!user) return;
+  openModal(user);
+};
+
+window.removeUser = async function removeUser(userId) {
+  const user = users.find(item => item.id === userId);
+  if (!user) return;
+  if (!window.confirm(`确认删除用户 ${user.username} 吗？`)) return;
+
+  try {
+    const result = await request(`/admin/users/${userId}`, { method: 'DELETE' });
+    if (result.code !== 0) throw new Error(result.message || '删除失败');
+    setMessage('pageMessage', '用户已删除', 'success');
+    await Promise.all([loadStats(), loadUsers()]);
+  } catch (error) {
+    setMessage('pageMessage', error.message || '删除失败');
+  }
+};
+
+/* ─── 事件绑定 ─── */
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => switchPage(item.dataset.page));
+});
+
+$('menuToggle')?.addEventListener('click', openSidebar);
+$('sidebarOverlay')?.addEventListener('click', closeSidebar);
+
+$('loginForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  setMessage('authMessage', '');
+
+  const username = $('username').value.trim();
+  const password = $('password').value;
+  if ($('loginSubmit')) {
+    $('loginSubmit').disabled = true;
+    $('loginSubmit').textContent = '登录中...';
+  }
+
+  try {
+    const result = await request('/auth/login', {
+      method: 'POST',
+      headers: {},
+      body: JSON.stringify({ username, password })
+    });
+
+    if (result.code !== 0) throw new Error(result.message || '登录失败');
+    if (!result.data.user.is_admin) throw new Error('当前账号没有后台管理权限');
+
+    authToken = result.data.token;
+    localStorage.setItem('token', authToken);
+    setValue('password', '');
+    await ensureAdmin();
+  } catch (error) {
+    setMessage('authMessage', error.message || '登录失败');
+  } finally {
+    if ($('loginSubmit')) {
+      $('loginSubmit').disabled = false;
+      $('loginSubmit').textContent = '登录后台';
+    }
+  }
+});
+
+$('searchInput')?.addEventListener('input', renderUsers);
+$('createUserBtn')?.addEventListener('click', () => openModal());
+$('cancelModalBtn')?.addEventListener('click', closeModal);
+$('logoutBtn')?.addEventListener('click', logout);
+$('backHomeBtn')?.addEventListener('click', () => { window.location.href = '/'; });
+
+$('saveKeyBtn')?.addEventListener('click', async () => {
+  try {
+    const result = await request('/admin/settings', {
+      method: 'PUT',
+      body: JSON.stringify({ openaiApiKey: $('openaiApiKey').value })
+    });
+    if (result.code !== 0) throw new Error(result.message || '保存失败');
+    setMessage('pageMessage', result.message || 'Key 已更新', 'success');
+    await loadSettings();
+  } catch (error) {
+    setMessage('pageMessage', error.message || '保存失败');
+  }
+});
+
+$('clearKeyBtn')?.addEventListener('click', async () => {
+  try {
+    const result = await request('/admin/settings', {
+      method: 'PUT',
+      body: JSON.stringify({ openaiApiKey: '' })
+    });
+    if (result.code !== 0) throw new Error(result.message || '清除失败');
+    setMessage('pageMessage', result.message || '后台 Key 已清除', 'success');
+    await loadSettings();
+  } catch (error) {
+    setMessage('pageMessage', error.message || '清除失败');
+  }
+});
+
+$('saveBaseUrlBtn')?.addEventListener('click', async () => {
+  try {
+    const result = await request('/admin/settings', {
+      method: 'PUT',
+      body: JSON.stringify({ openaiBaseUrl: $('openaiBaseUrl').value })
+    });
+    if (result.code !== 0) throw new Error(result.message || '保存失败');
+    setMessage('pageMessage', 'Base URL 已更新', 'success');
+    await loadSettings();
+  } catch (error) {
+    setMessage('pageMessage', error.message || '保存失败');
+  }
+});
+
+$('clearBaseUrlBtn')?.addEventListener('click', async () => {
+  try {
+    const result = await request('/admin/settings', {
+      method: 'PUT',
+      body: JSON.stringify({ openaiBaseUrl: '' })
+    });
+    if (result.code !== 0) throw new Error(result.message || '清除失败');
+    setMessage('pageMessage', 'Base URL 已清除，将回退到环境变量', 'success');
+    await loadSettings();
+  } catch (error) {
+    setMessage('pageMessage', error.message || '清除失败');
+  }
+});
+
+$('saveImageHostBtn')?.addEventListener('click', async () => {
+  try {
+    const result = await request('/admin/settings', {
+      method: 'PUT',
+      body: JSON.stringify({ imageHostToken: $('imageHostToken').value })
+    });
+    if (result.code !== 0) throw new Error(result.message || '保存失败');
+    setMessage('pageMessage', '图床 Token 已更新', 'success');
+    await loadSettings();
+  } catch (error) {
+    setMessage('pageMessage', error.message || '保存失败');
+  }
+});
+
+$('clearImageHostBtn')?.addEventListener('click', async () => {
+  try {
+    const result = await request('/admin/settings', {
+      method: 'PUT',
+      body: JSON.stringify({ imageHostToken: '' })
+    });
+    if (result.code !== 0) throw new Error(result.message || '清除失败');
+    setMessage('pageMessage', '图床 Token 已清除', 'success');
+    await loadSettings();
+  } catch (error) {
+    setMessage('pageMessage', error.message || '清除失败');
+  }
+});
+
+$('userModal')?.addEventListener('click', event => {
+  if (event.target.id === 'userModal') closeModal();
+});
+
+$('userForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  setMessage('pageMessage', '');
+
+  const id = $('editUserId').value;
+  const payload = {
+    points: Number($('editPoints').value),
+    is_admin: $('editIsAdmin').checked
+  };
+
+  if ($('editPassword').value) payload.password = $('editPassword').value;
+
+  try {
+    let result;
+    if (id) {
+      result = await request(`/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+    } else {
+      result = await request('/admin/users', {
+        method: 'POST',
+        body: JSON.stringify({
+          username: $('editUsername').value.trim(),
+          password: $('editPassword').value,
+          points: payload.points,
+          is_admin: payload.is_admin
+        })
+      });
+    }
+
+    if (result.code !== 0) throw new Error(result.message || '保存失败');
+    closeModal();
+    setMessage('pageMessage', id ? '用户已更新' : '用户已创建', 'success');
+    await Promise.all([loadStats(), loadUsers()]);
+  } catch (error) {
+    setMessage('pageMessage', error.message || '保存失败');
+  }
+});
+
+ensureAdmin();
+</script>
+</body>
+</html>

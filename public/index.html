@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>AI广告设计</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/images/favicon.ico">
+</head>
+<body>
+<div id="app" class="app">
+
+<!-- 1. 生成页 -->
+<div class="page page-active" id="pageGenerate">
+<header class="header">
+  <div class="header-brand">
+    <div class="brand-mark">AI</div>
+    <div class="brand-copy">
+      <span class="brand-eyebrow">Creative Studio</span>
+      <h1>AI广告设计</h1>
+    </div>
+  </div>
+  <button class="header-avatar-btn" id="mineEntry" type="button" aria-label="我的">👤</button>
+</header>
+<main class="main">
+  <div class="mobile-form-card">
+    <section class="section">
+      <h2 class="section-title">物料</h2>
+      <div class="material-scroll">
+        <div class="material-list" id="materialList"></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">内容</h2>
+      <div class="content-input-panel">
+        <textarea class="text-input text-input-merged" id="textInput" placeholder="请输入需要出现在画面中的文字，如店名、口号、联系方式等" maxlength="200"></textarea>
+        <div class="content-panel-upload-row">
+          <div class="upload-area upload-area-inline" id="uploadArea">
+            <div class="upload-btn">
+              <span class="upload-plus">+</span>
+              <span>素材图</span>
+            </div>
+            <span class="upload-hint">上传产品图、Logo等素材，AI会将其融入设计</span>
+          </div>
+        </div>
+      </div>
+      <div class="error-msg" id="textError"></div>
+    </section>
+
+    <section class="section section-bottom">
+      <h2 class="section-title">尺寸</h2>
+      <div class="size-row">
+        <div class="size-input-wrap" id="widthWrap">
+          <button class="size-step" type="button" data-target="sizeWidth" data-step="-1" aria-label="减少宽度">−</button>
+          <input class="size-input" id="sizeWidth" type="number" placeholder="宽" value="60">
+          <span class="size-unit">cm</span>
+          <button class="size-step" type="button" data-target="sizeWidth" data-step="1" aria-label="增加宽度">+</button>
+        </div>
+        <span class="size-x">×</span>
+        <div class="size-input-wrap" id="heightWrap">
+          <button class="size-step" type="button" data-target="sizeHeight" data-step="-1" aria-label="减少高度">−</button>
+          <input class="size-input" id="sizeHeight" type="number" placeholder="高" value="30">
+          <span class="size-unit">cm</span>
+          <button class="size-step" type="button" data-target="sizeHeight" data-step="1" aria-label="增加高度">+</button>
+        </div>
+      </div>
+      <div class="size-hint" id="sizeHint"></div>
+    </section>
+
+    <section class="section section-bottom">
+      <h2 class="section-title">画质</h2>
+      <div class="quality-row" id="qualityRow">
+        <button class="quality-chip active" data-quality="default">默认</button>
+        <button class="quality-chip" data-quality="2k">2K</button>
+        <button class="quality-chip" data-quality="4k">4K</button>
+      </div>
+      <div class="quality-hint" id="qualityHint">标准画质，消耗 1 点</div>
+    </section>
+
+    <div class="mobile-action-bar">
+      <button class="btn-primary" id="genBtn">开始生成（1点）</button>
+      <div class="error-msg" id="genError"></div>
+    </div>
+  </div>
+</main>
+</div>
+
+<!-- 2. 结果页 -->
+<div class="page" id="pageResult">
+<header class="sub-header">
+  <span class="back-btn" id="resultBackBtn">←</span>
+  <h1>生成结果</h1>
+</header>
+<main class="main">
+  <div class="mobile-result-card">
+    <div class="loading-wrap" id="loadingWrap">
+      <div class="loading-anim"></div>
+      <div class="loading-text" id="loadingText">AI创作中...</div>
+      <div class="loading-sub" id="loadingSub">预计需要15-30秒</div>
+    </div>
+
+    <div class="error-state" id="errorState" style="display: none;">
+      <div class="error-icon">😵</div>
+      <div class="error-title">生成失败</div>
+      <div class="error-desc" id="errorMsg">网络异常，请稍后重试</div>
+      <button class="error-btn" id="retryBtn">重新生成</button>
+    </div>
+
+    <div class="result-wrap" id="resultWrap" style="display: none;">
+      <div class="result-img-area" id="resultImgArea">
+        <img id="resultImg" src="" alt="生成结果">
+      </div>
+      <div class="result-dots" id="resultDots"></div>
+      <div class="result-quality-hint">AI 生成图片经放大处理可达印刷标准</div>
+      <div class="result-feedback">
+        <input type="text" id="feedbackInput" placeholder="对结果不满意？说说哪里不对（可选）">
+      </div>
+      <div class="result-actions">
+        <button class="btn-action btn-download" id="downloadBtn">下载保存</button>
+        <button class="btn-action btn-regen" id="regenBtn">重新生成</button>
+      </div>
+    </div>
+  </div>
+</main>
+</div>
+
+<!-- 3. 个人中心页 -->
+<div class="page" id="pageMine">
+<header class="sub-header">
+  <span class="back-btn" id="mineBackBtn">←</span>
+  <h1>个人中心</h1>
+</header>
+<main class="main mine-main">
+  <div class="mine-profile card">
+    <div class="mine-avatar" id="mineAvatar">👤</div>
+    <div class="mine-name" id="mineName">用户</div>
+    <div class="mine-hint" id="mineHint"></div>
+  </div>
+
+  <div class="points-card card">
+    <div class="points-info">
+      <span class="points-num" id="pointsNum">--</span>
+      <span class="points-label">点</span>
+    </div>
+    <button class="recharge-btn" id="rechargeBtn">充值</button>
+  </div>
+
+  <div class="menu-section card">
+      <div class="menu-item admin-only" id="adminEntry" style="display:none">
+        <span class="menu-icon">⚙️</span>
+        <span class="menu-text">后台管理</span>
+        <span class="menu-arrow">›</span>
+      </div>
+      <div class="menu-item" id="historyBtn">
+        <span class="menu-icon">📋</span>
+        <span class="menu-text">生成历史</span>
+        <span class="menu-arrow">›</span>
+      </div>
+      <div class="menu-item" id="contactBtn">
+        <span class="menu-icon">💬</span>
+        <span class="menu-text">联系客服</span>
+        <span class="menu-arrow">›</span>
+      </div>
+    </div>
+
+  <button class="logout-btn" id="logoutBtn">退出登录</button>
+</main>
+</div>
+
+<!-- 4. 历史记录页 -->
+<div class="page" id="pageHistory">
+<header class="sub-header">
+  <span class="back-btn" id="historyBackBtn">←</span>
+  <h1>生成历史</h1>
+</header>
+<main class="main">
+  <div id="historyList"></div>
+</main>
+</div>
+
+<!-- 弹窗：登录 -->
+<div class="modal" id="loginModal" style="display: none;">
+<div class="modal-content">
+  <div class="modal-header">
+    <h3 id="loginModalTitle">登录</h3>
+    <span class="modal-close" id="loginModalClose">×</span>
+  </div>
+  <div class="login-form-modal">
+    <input type="text" id="modalLoginUsername" placeholder="用户名" class="login-input">
+    <input type="password" id="modalLoginPassword" placeholder="密码" class="login-input">
+    <button class="btn-primary" id="modalLoginBtn" type="button">登录</button>
+    <div class="login-switch">
+      <span id="loginSwitchBtn">没有账号？去注册</span>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- 弹窗：充值 -->
+<div class="modal" id="rechargeModal" style="display: none;">
+<div class="modal-content">
+  <div class="modal-header">
+    <h3>充值</h3>
+    <span class="modal-close" id="rechargeClose">×</span>
+  </div>
+  <div class="balance-info">
+    当前点数：<span id="rechargePoints">0</span>
+  </div>
+  <div class="package-list" id="packageList"></div>
+  <button class="btn-primary" id="payBtn">立即支付</button>
+</div>
+</div>
+
+<!-- 弹窗：确认 -->
+<div class="modal" id="confirmModal" style="display: none;">
+<div class="modal-content">
+  <div class="modal-header">
+    <h3>确认</h3>
+  </div>
+  <p id="confirmMsg"></p>
+  <div class="confirm-actions">
+    <button class="btn-action btn-cancel" id="confirmCancelBtn">取消</button>
+    <button class="btn-primary" id="confirmOkBtn">确定</button>
+  </div>
+</div>
+</div>
+
+<!-- 弹窗：联系客服 -->
+<div class="modal" id="contactModal" style="display: none;">
+<div class="modal-content">
+  <div class="modal-header">
+    <h3>联系客服</h3>
+    <span class="modal-close" id="contactModalClose">×</span>
+  </div>
+  <div class="contact-content">
+    <p>添加客服微信，获取专业设计支持</p>
+    <div class="contact-wechat" id="contactWechat">kefu_wechat</div>
+    <button class="btn-primary" id="copyWechatBtn">复制微信号</button>
+  </div>
+</div>
+</div>
+
+<div class="global-toast" id="globalToast"></div>
+
+<script src="/js/app.js"></script>
+</body>
+</html>
