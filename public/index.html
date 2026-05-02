@@ -39,7 +39,7 @@
           <div class="upload-area upload-area-inline" id="uploadArea">
             <div class="upload-btn">
               <span class="upload-plus">+</span>
-              <span>素材图</span>
+              <span>添加素材</span>
             </div>
             <span class="upload-hint">上传产品图、Logo等素材，AI会将其融入设计</span>
           </div>
@@ -71,11 +71,11 @@
     <section class="section section-bottom">
       <h2 class="section-title">画质</h2>
       <div class="quality-row" id="qualityRow">
-        <button class="quality-chip active" data-quality="default">默认</button>
-        <button class="quality-chip" data-quality="2k">2K</button>
-        <button class="quality-chip" data-quality="4k">4K</button>
+        <button class="quality-chip active" data-quality="default">标准</button>
+        <button class="quality-chip" data-quality="2k">高清</button>
+        <button class="quality-chip" data-quality="4k">超清</button>
       </div>
-      <div class="quality-hint" id="qualityHint">标准画质，消耗 1 点</div>
+      <div class="quality-hint" id="qualityHint">1K，消耗 1 点</div>
     </section>
 
     <div class="mobile-action-bar">
@@ -136,9 +136,10 @@
     <div class="mine-avatar" id="mineAvatar">👤</div>
     <div class="mine-name" id="mineName">用户</div>
     <div class="mine-hint" id="mineHint"></div>
+    <button class="btn-primary mine-login-btn" id="mineLoginBtn" style="display:none">登录 / 注册</button>
   </div>
 
-  <div class="points-card card">
+  <div class="points-card card" id="pointsCard" style="display:none">
     <div class="points-info">
       <span class="points-num" id="pointsNum">--</span>
       <span class="points-label">点</span>
@@ -152,9 +153,14 @@
         <span class="menu-text">后台管理</span>
         <span class="menu-arrow">›</span>
       </div>
-      <div class="menu-item" id="historyBtn">
+      <div class="menu-item" id="historyBtn" style="display:none">
         <span class="menu-icon">📋</span>
         <span class="menu-text">生成历史</span>
+        <span class="menu-arrow">›</span>
+      </div>
+      <div class="menu-item" id="helpBtn">
+        <span class="menu-icon">❓</span>
+        <span class="menu-text">使用帮助</span>
         <span class="menu-arrow">›</span>
       </div>
       <div class="menu-item" id="contactBtn">
@@ -164,7 +170,7 @@
       </div>
     </div>
 
-  <button class="logout-btn" id="logoutBtn">退出登录</button>
+  <button class="logout-btn" id="logoutBtn" style="display:none">退出登录</button>
 </main>
 </div>
 
@@ -235,10 +241,93 @@
   </div>
   <div class="contact-content">
     <p>添加客服微信，获取专业设计支持</p>
-    <div class="contact-wechat" id="contactWechat">kefu_wechat</div>
+    <div class="contact-wechat" id="contactWechat">jamw2014</div>
     <button class="btn-primary" id="copyWechatBtn">复制微信号</button>
   </div>
 </div>
+</div>
+
+<!-- 5. 使用帮助页 -->
+<div class="page" id="pageHelp">
+<header class="sub-header">
+  <span class="back-btn" id="helpBackBtn">←</span>
+  <h1>使用帮助</h1>
+</header>
+<main class="main">
+  <div class="help-page-content">
+
+    <div class="help-section">
+      <div class="help-step-num">1</div>
+      <div class="help-step-body">
+        <div class="help-step-title">选择物料类型</div>
+        <div class="help-step-desc">在首页顶部选择你需要的广告类型，如门头招牌、活动海报、易拉宝等</div>
+        <img class="help-screenshot" src="/images/help/step1.jpg" alt="选择物料" onerror="this.style.display='none'">
+      </div>
+    </div>
+
+    <div class="help-section">
+      <div class="help-step-num">2</div>
+      <div class="help-step-body">
+        <div class="help-step-title">输入文字 + 添加素材</div>
+        <div class="help-step-desc">填写广告文字内容（至少2个字），可选上传产品图、Logo等素材，AI会将其融入设计</div>
+        <img class="help-screenshot" src="/images/help/step2.jpg" alt="输入文字和素材" onerror="this.style.display='none'">
+      </div>
+    </div>
+
+    <div class="help-section">
+      <div class="help-step-num">3</div>
+      <div class="help-step-body">
+        <div class="help-step-title">调整尺寸</div>
+        <div class="help-step-desc">设置广告的物理尺寸（cm）或像素尺寸（px），系统会自动匹配最佳生成比例</div>
+        <img class="help-screenshot" src="/images/help/step3.jpg" alt="调整尺寸" onerror="this.style.display='none'">
+      </div>
+    </div>
+
+    <div class="help-section">
+      <div class="help-step-num">4</div>
+      <div class="help-step-body">
+        <div class="help-step-title">选择画质</div>
+        <div class="help-step-desc">标准（1K）适合预览，高清（2K）适合小尺寸印刷，超清（4K）适合大幅面印刷</div>
+        <img class="help-screenshot" src="/images/help/step4.jpg" alt="选择画质" onerror="this.style.display='none'">
+      </div>
+    </div>
+
+    <div class="help-section">
+      <div class="help-step-num">5</div>
+      <div class="help-step-body">
+        <div class="help-step-title">查看结果</div>
+        <div class="help-step-desc">生成完成后可预览大图、下载保存，不满意可重新生成</div>
+      </div>
+    </div>
+
+    <div class="help-divider"></div>
+
+    <div class="help-faq">
+      <div class="help-faq-title">常见问题</div>
+      <div class="help-faq-item">
+        <div class="help-faq-q">画质有什么区别？</div>
+        <div class="help-faq-a">标准（1K）适合预览，消耗1点；高清（2K）适合小尺寸印刷，消耗2点；超清（4K）适合大幅面印刷，消耗3点</div>
+      </div>
+      <div class="help-faq-item">
+        <div class="help-faq-q">点数怎么获得？</div>
+        <div class="help-faq-a">新用户注册赠送免费点数，用完后可在个人中心充值获取更多</div>
+      </div>
+      <div class="help-faq-item">
+        <div class="help-faq-q">生成的图片可以商用吗？</div>
+        <div class="help-faq-a">可以，生成的图片版权归用户所有，可用于商业用途</div>
+      </div>
+    </div>
+
+  </div>
+</main>
+</div>
+
+<!-- 全屏图片查看器 -->
+<div class="fullscreen-viewer" id="fullscreenViewer" style="display: none;">
+  <div class="fullscreen-close" id="fullscreenClose">×</div>
+  <div class="fullscreen-img-wrap">
+    <img id="fullscreenImg" src="" alt="全屏查看">
+  </div>
 </div>
 
 <div class="global-toast" id="globalToast"></div>

@@ -89,21 +89,21 @@ router.post('/image', async (req, res) => {
   let pointsCost = config.POINTS_PER_GENERATE;
 
   try {
-  const { scene, text, width = 60, height = 90, quality = 'default', referenceImage, feedback } = req.body;
-  const parsedWidth = parsePositiveNumber(width);
-  const parsedHeight = parsePositiveNumber(height);
-  const validQualities = ['default', '2k', '4k'];
-  const qualityLevel = validQualities.includes(quality) ? quality : 'default';
-  pointsCost = qualityLevel === 'default' ? config.POINTS_PER_GENERATE : config.POINTS_PER_GENERATE_HD;
-    
-    // 验证参数
-  if (!text || text.trim().length === 0) {
-    return res.status(400).json({ code: 400, message: '请输入要生成的文字内容' });
-  }
+    const { scene, text, width = 60, height = 90, quality = 'default', referenceImage, feedback } = req.body;
+    const parsedWidth = parsePositiveNumber(width);
+    const parsedHeight = parsePositiveNumber(height);
+    const validQualities = ['default', '2k', '4k'];
+    const qualityLevel = validQualities.includes(quality) ? quality : 'default';
+    pointsCost = qualityLevel === '4k' ? config.POINTS_PER_GENERATE_4K : qualityLevel === '2k' ? config.POINTS_PER_GENERATE_HD : config.POINTS_PER_GENERATE;
 
-  if (text.trim().length > 200) {
-    return res.status(400).json({ code: 400, message: '文字内容不能超过200个字符' });
-  }
+    // 验证参数
+    if (!text || text.trim().length === 0) {
+      return res.status(400).json({ code: 400, message: '请输入要生成的文字内容' });
+    }
+
+    if (text.trim().length > 200) {
+      return res.status(400).json({ code: 400, message: '文字内容不能超过200个字符' });
+    }
     
     if (!scene || !VALID_SCENES.includes(scene)) {
       return res.status(400).json({ code: 400, message: '请选择有效的物料类型' });
@@ -120,11 +120,11 @@ router.post('/image', async (req, res) => {
     }
 
     const ratio = parsedWidth / parsedHeight;
-  if (ratio > 10 || ratio < 0.1) {
-    return res.status(400).json({ code: 400, message: '宽高比超出 1:10 到 10:1 范围' });
-  }
+    if (ratio > 10 || ratio < 0.1) {
+      return res.status(400).json({ code: 400, message: '宽高比超出 1:10 到 10:1 范围' });
+    }
 
-  // 原子扣点（防止并发竞态）
+    // 原子扣点（防止并发竞态）
     const newPoints = db.updateUserPoints(req.userId, -pointsCost);
     if (newPoints === false) {
       return res.status(402).json({ code: 402, message: '点数不足，请先充值' });
@@ -190,7 +190,8 @@ router.post('/image', async (req, res) => {
     // 保存图片到文件
     const imagePaths = [];
     for (let i = 0; i < generatedImages.length; i++) {
-      const filename = `${scene}_${parsedWidth}x${parsedHeight}cm_${uuidv4().slice(0,8)}.png`;
+      const unitLabel = isPixelUnit ? 'px' : 'cm';
+      const filename = `${scene}_${parsedWidth}x${parsedHeight}${unitLabel}_${uuidv4().slice(0,8)}.png`;
       const filepath = path.join(generatedDir, filename);
       await fs.writeFile(filepath, generatedImages[i].buffer);
       imagePaths.push(`/uploads/generated/${filename}`);
@@ -220,21 +221,21 @@ router.post('/image', async (req, res) => {
     });
     
   } catch (err) {
-  // 生成失败，退还点数
-  const refund = db.updateUserPoints(req.userId, pointsCost);
-  if (refund !== false) {
-    db.logPointChange(req.userId, 'refund', pointsCost, '生成失败退还点数');
-  } else {
-    console.error('[退还点数失败] 用户不存在:', req.userId);
-  }
-  generateRateLimit.refundAttempt(req.userId);
+    // 生成失败，退还点数
+    const refund = db.updateUserPoints(req.userId, pointsCost);
+    if (refund !== false) {
+      db.logPointChange(req.userId, 'refund', pointsCost, '生成失败退还点数');
+    } else {
+      console.error('[退还点数失败] 用户不存在:', req.userId);
+    }
+    generateRateLimit.refundAttempt(req.userId);
 
-  console.error('[生成图片错误]', err.message);
+    console.error('[生成图片错误]', err.message);
     if (err.message && (err.message.includes('未配置 API Key') || err.message.includes('未配置 API Base URL'))) {
       return res.status(503).json({ code: 503, message: '图片生成服务未配置，请联系管理员设置 API Key' });
     }
     res.status(500).json({ code: 500, message: '生成失败，请稍后重试' });
-} finally {
+  } finally {
     if (shouldCleanupTemp && referenceImagePath) {
       try { await fs.unlink(referenceImagePath); } catch (cleanupErr) {}
     }
@@ -254,6 +255,7 @@ router.get('/history', async (req, res) => {
     width: img.width,
     height: img.height,
     imagePaths: img.image_paths,
+    thumbUrl: `/api/generate/image/${img.id}?thumb=1`,
     createdAt: img.created_at
   }));
   
@@ -280,19 +282,30 @@ router.get('/image/:id', async (req, res) => {
         return res.status(403).json({ code: 403, message: '无权访问' });
       }
     }
-    
+
     const index = parseInt(req.query.index) || 0;
     const imagePath = image.image_paths[index];
-    
+
     if (!imagePath) {
       return res.status(404).json({ code: 404, message: '图片不存在' });
     }
-    
+
   const fullPath = path.resolve(uploadsRoot, imagePath.replace(/^\/uploads\//, ''));
   if (!fullPath.startsWith(uploadsRoot + path.sep)) {
     return res.status(403).json({ code: 403, message: '非法图片路径' });
   }
   try { await fs.stat(fullPath); } catch { return res.status(404).json({ code: 404, message: '图片文件不存在' }); }
+
+  // 缩略图模式：?thumb=1 返回 300px 宽的 JPEG
+  if (req.query.thumb === '1') {
+    const thumbBuffer = await sharp(fullPath)
+      .resize(300, 300, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 70 })
+      .toBuffer();
+    res.set('Content-Type', 'image/jpeg');
+    res.set('Cache-Control', 'public, max-age=604800');
+    return res.send(thumbBuffer);
+  }
 
   res.set('Content-Type', 'image/png');
   res.set('Cache-Control', 'public, max-age=86400');

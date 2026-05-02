@@ -32,6 +32,14 @@ background:
 
 body {
 line-height: 1.5;
+-webkit-user-select: none;
+user-select: none;
+}
+
+input,
+textarea {
+-webkit-user-select: text;
+user-select: text;
 }
 
 button,
@@ -57,6 +65,7 @@ display: none;
 display: flex;
 flex-direction: column;
 min-height: 0;
+flex: 1;
 }
 
 .main {
@@ -323,8 +332,8 @@ overflow-y: hidden;
 }
 
 .upload-btn {
-width: 86px;
-height: 86px;
+width: 106px;
+height: 106px;
 border: 1px dashed rgba(104, 76, 43, 0.2);
 border-radius: 16px;
 display: flex;
@@ -339,15 +348,15 @@ cursor: pointer;
 
 .upload-area-inline .upload-btn,
 .upload-area-inline .upload-thumb {
-width: 60px;
-height: 60px;
+width: 72px;
+height: 72px;
 border-radius: 14px;
-flex: 0 0 60px;
+flex: 0 0 72px;
 }
 
 .upload-area-inline .upload-btn {
 gap: 2px;
-font-size: 10px;
+font-size: 11px;
 }
 
 .upload-area-inline .upload-plus {
@@ -448,8 +457,8 @@ input[type="number"].size-input {
 }
 
 .size-step {
-width: 28px;
-height: 28px;
+width: 36px;
+height: 36px;
 flex-shrink: 0;
 border: none;
 border-radius: 10px;
@@ -496,7 +505,7 @@ height: 40px;
 border: 1px solid rgba(104, 76, 43, 0.14);
 border-radius: 14px;
 background: #fff;
-color: var(--text-main);
+color: var(--text);
 font-size: 14px;
 font-weight: 500;
 cursor: pointer;
@@ -517,8 +526,15 @@ color: var(--text-faint);
 }
 
 .mobile-action-bar {
+position: fixed;
+bottom: 0;
+left: 0;
+right: 0;
+z-index: 100;
 padding: 12px 16px 16px;
-background: rgba(255, 255, 255, 0.9);
+background: rgba(255, 255, 255, 0.95);
+backdrop-filter: blur(14px);
+border-top: 1px solid var(--border);
 }
 
 .btn-primary {
@@ -789,6 +805,94 @@ color: var(--text-soft);
 font-size: 13px;
 }
 
+.mine-login-btn {
+margin-top: 12px;
+padding: 8px 28px;
+font-size: 14px;
+}
+
+.help-page-content {
+padding: 16px;
+}
+
+.help-section {
+display: flex;
+gap: 14px;
+margin-bottom: 28px;
+}
+
+.help-step-num {
+flex-shrink: 0;
+width: 32px;
+height: 32px;
+border-radius: 50%;
+background: var(--primary);
+color: #fff;
+font-size: 15px;
+font-weight: 700;
+display: flex;
+align-items: center;
+justify-content: center;
+margin-top: 2px;
+}
+
+.help-step-body {
+flex: 1;
+min-width: 0;
+}
+
+.help-step-title {
+font-size: 15px;
+font-weight: 600;
+color: var(--text);
+margin-bottom: 6px;
+}
+
+.help-step-desc {
+font-size: 13px;
+color: var(--text-soft);
+line-height: 1.6;
+margin-bottom: 12px;
+}
+
+.help-screenshot {
+width: 100%;
+border-radius: 10px;
+border: 1px solid var(--border);
+display: block;
+margin-top: 4px;
+}
+
+.help-divider {
+height: 1px;
+background: var(--border);
+margin: 8px 0 24px;
+}
+
+.help-faq-title {
+font-size: 15px;
+font-weight: 600;
+color: var(--text);
+margin-bottom: 16px;
+}
+
+.help-faq-item {
+margin-bottom: 16px;
+}
+
+.help-faq-q {
+font-size: 14px;
+font-weight: 600;
+color: var(--text);
+margin-bottom: 4px;
+}
+
+.help-faq-a {
+font-size: 13px;
+color: var(--text-soft);
+line-height: 1.6;
+}
+
 .points-card {
 display: flex;
 align-items: center;
@@ -923,6 +1027,7 @@ font-size: 13px;
   height: 100%;
   object-fit: cover;
   display: block;
+  cursor: pointer;
 }
 
 .history-card-empty {
@@ -1100,7 +1205,7 @@ cursor: pointer;
 }
 
 .package-item.selected {
-border-color: rgba(196, 104, 44, 0.32);
+border: 2px solid var(--primary);
 background: rgba(196, 104, 44, 0.08);
 }
 
@@ -1167,6 +1272,47 @@ opacity: 1;
 transform: translateX(-50%) translateY(0);
 }
 
+.fullscreen-viewer {
+position: fixed;
+inset: 0;
+z-index: 400;
+background: rgba(0, 0, 0, 0.95);
+display: flex;
+align-items: center;
+justify-content: center;
+}
+
+.fullscreen-close {
+position: absolute;
+top: 16px;
+right: 16px;
+z-index: 410;
+width: 40px;
+height: 40px;
+border-radius: 50%;
+background: rgba(255, 255, 255, 0.15);
+color: #fff;
+font-size: 24px;
+display: flex;
+align-items: center;
+justify-content: center;
+cursor: pointer;
+}
+
+.fullscreen-img-wrap {
+width: 100%;
+height: 100%;
+display: flex;
+align-items: center;
+justify-content: center;
+}
+
+.fullscreen-img-wrap img {
+max-width: 100vw;
+max-height: 100vh;
+object-fit: contain;
+}
+
 @media (max-width: 767px) {
   .main {
     padding-bottom: 104px;
@@ -1215,8 +1361,8 @@ transform: translateX(-50%) translateY(0);
   }
 
   .size-step {
-    width: 26px;
-    height: 26px;
+    width: 34px;
+    height: 34px;
     font-size: 16px;
   }
 }

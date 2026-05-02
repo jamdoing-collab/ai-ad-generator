@@ -65,6 +65,21 @@ function showToast(message) {
   }, 2200);
 }
 
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;left:-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand('copy');
+    showToast('微信号已复制');
+  } catch {
+    showToast('复制失败，请手动复制');
+  }
+  document.body.removeChild(ta);
+}
+
 async function api(endpoint, options = {}) {
   const headers = { 'Content-Type': 'application/json' };
   if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
@@ -117,6 +132,19 @@ async function init() {
   bindMobileEvents();
   selectMaterial(0);
   checkAuth();
+}
+
+function resetForm() {
+  $('textInput').value = '';
+  setTextInputErrorState('textInput', false);
+  $('textError').textContent = '';
+  uploadedImages = [];
+  renderUploadedImages();
+  selectedQuality = 'default';
+  document.querySelectorAll('#qualityRow .quality-chip').forEach(c => {
+    c.classList.toggle('active', c.dataset.quality === 'default');
+  });
+  selectMaterial(0);
 }
 
 function checkAuth() {
@@ -181,6 +209,13 @@ function bindMobileEvents() {
   $('sizeWidth').addEventListener('input', () => { validateSize(); });
   $('sizeHeight').addEventListener('input', () => { validateSize(); });
 
+  // 输入框聚焦时自动滚动到可视区域
+  ['textInput', 'sizeWidth', 'sizeHeight'].forEach(id => {
+    $(id).addEventListener('focus', () => {
+      setTimeout(() => $(id).scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
+    });
+  });
+
   $('qualityRow').addEventListener('click', e => {
     const chip = e.target.closest('.quality-chip');
     if (!chip) return;
@@ -188,33 +223,53 @@ function bindMobileEvents() {
     document.querySelectorAll('#qualityRow .quality-chip').forEach(c => {
       c.classList.toggle('active', c.dataset.quality === selectedQuality);
     });
-    const hints = { default: '标准画质，消耗 1 点', '2k': '高清画质，消耗 2 点', '4k': '超清画质，消耗 2 点' };
+    const hints = { default: '1K，消耗 1 点', '2k': '2K，消耗 2 点', '4k': '4K，消耗 3 点' };
     $('qualityHint').textContent = hints[selectedQuality] || '';
-    $('genBtn').textContent = `开始生成（${selectedQuality === 'default' ? 1 : 2}点）`;
+    $('genBtn').textContent = `开始生成（${selectedQuality === '4k' ? 3 : selectedQuality === '2k' ? 2 : 1}点）`;
   });
 
   $('genBtn').addEventListener('click', () => startGenerate());
 
   $('mineEntry').addEventListener('click', () => {
-    if (!authToken || !userInfo) {
-      pendingMineAfterLogin = true;
-      showLoginModal();
-    } else {
-      updateMineDisplay();
-      showPage('mine');
-    }
+    updateMineDisplay();
+    showPage('mine');
   });
 
   $('adminEntry').addEventListener('click', () => {
     window.open('/admin', '_blank');
   });
 
-$('resultBackBtn').addEventListener('click', () => showPage(resultSourcePage));
-$('retryBtn').addEventListener('click', () => showPage('generate'));
-$('downloadBtn').addEventListener('click', downloadImage);
-$('regenBtn').addEventListener('click', () => {
-  showPage('generate');
-});
+  $('mineLoginBtn').addEventListener('click', () => {
+    showLoginModal();
+  });
+
+  $('helpBtn').addEventListener('click', () => showPage('help'));
+  $('helpBackBtn').addEventListener('click', () => showPage('mine'));
+
+  $('retryBtn').addEventListener('click', () => {
+    resetForm();
+    showPage('generate');
+  });
+  $('downloadBtn').addEventListener('click', downloadImage);
+  $('regenBtn').addEventListener('click', () => {
+    showPage('generate');
+  });
+
+  // 全屏图片查看
+  $('resultImg').addEventListener('click', () => {
+    $('fullscreenImg').src = $('resultImg').src;
+    $('fullscreenViewer').style.display = 'flex';
+  });
+  $('fullscreenViewer').addEventListener('click', () => {
+    $('fullscreenViewer').style.display = 'none';
+  });
+
+  // 生成中禁止返回
+  $('resultBackBtn').addEventListener('click', e => {
+    if (isGenerating) { e.stopPropagation(); showToast('正在生成中，请稍候'); return; }
+    resetForm();
+    showPage(resultSourcePage);
+  }, true);
 
   $('mineBackBtn').addEventListener('click', () => showPage('generate'));
   $('historyBackBtn').addEventListener('click', () => showPage('mine'));
@@ -242,10 +297,7 @@ $('regenBtn').addEventListener('click', () => {
     doLogin($('modalLoginUsername').value.trim(), $('modalLoginPassword').value, {
       onSuccess: () => {
         hideLoginModal();
-        if (pendingMineAfterLogin) {
-          pendingMineAfterLogin = false;
-          showPage('mine');
-        }
+        pendingMineAfterLogin = false;
       }
     });
   });
@@ -269,11 +321,13 @@ $('regenBtn').addEventListener('click', () => {
 
   $('copyWechatBtn').addEventListener('click', () => {
     const wechat = $('contactWechat').textContent.trim();
-    navigator.clipboard.writeText(wechat).then(() => {
-      showToast('微信号已复制');
-    }).catch(() => {
-      showToast('复制失败，请手动复制');
-    });
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(wechat).then(() => {
+        showToast('微信号已复制');
+      }).catch(() => fallbackCopy(wechat));
+    } else {
+      fallbackCopy(wechat);
+    }
   });
 
   $('resultDots').addEventListener('click', onResultDotClick);
@@ -314,9 +368,9 @@ function selectMaterial(index) {
   validateSize();
 
   // 保持当前画质选择，更新提示文案
-  const hints = { default: '标准画质，消耗 1 点', '2k': '高清画质，消耗 2 点', '4k': '超清画质，消耗 2 点' };
+  const hints = { default: '1K，消耗 1 点', '2k': '2K，消耗 2 点', '4k': '4K，消耗 3 点' };
   $('qualityHint').textContent = hints[selectedQuality] || hints.default;
-  $('genBtn').textContent = `开始生成（${selectedQuality === 'default' ? 1 : 2}点）`;
+  $('genBtn').textContent = `开始生成（${selectedQuality === '4k' ? 3 : selectedQuality === '2k' ? 2 : 1}点）`;
 }
 
 async function calcAspectRatio(width, height) {
@@ -402,7 +456,7 @@ function renderUploadedImages() {
       <img src="${img}" alt="">
       <span class="upload-remove" data-index="${i}">×</span>
     </div>
-  `).join('') + (uploadedImages.length < 1 ? '<div class="upload-btn"><span class="upload-plus">+</span><span>上传素材图</span></div>' : '');
+  `).join('') + (uploadedImages.length < 1 ? '<div class="upload-btn"><span class="upload-plus">+</span><span>添加素材</span></div>' : '');
 
   const area = $('uploadArea');
   area.innerHTML = html;
@@ -469,7 +523,8 @@ async function validateAll() {
 async function startGenerate() {
   if (isGenerating) return;
   if (!authToken || !userInfo) { showLoginModal(); return; }
-  if (userInfo.points < 1) { alert('点数不足，请充值'); showRechargeModal(); return; }
+  const needPoints = selectedQuality === '4k' ? 3 : selectedQuality === '2k' ? 2 : 1;
+  if (userInfo.points < needPoints) { alert('点数不足，请充值'); showRechargeModal(); return; }
 
   isGenerating = true;
 
@@ -517,13 +572,12 @@ async function startGenerate() {
       currentResultImages = res.data.images.map(img => img.url);
       currentResultIndex = 0;
       userInfo.points = res.data.points;
-
-    $('loadingWrap').style.display = 'none';
+      $('loadingWrap').style.display = 'none';
       $('resultWrap').style.display = 'flex';
       showResultImage(0);
       updateMineDisplay();
       if ($('feedbackInput')) $('feedbackInput').value = '';
-      } else {
+    } else {
       throw new Error(res.message);
     }
   } catch (err) {
@@ -533,7 +587,8 @@ async function startGenerate() {
   } finally {
     isGenerating = false;
     $('genBtn').disabled = false;
-    $('genBtn').textContent = '开始生成（1点）';
+    const cost = selectedQuality === '4k' ? 3 : selectedQuality === '2k' ? 2 : 1;
+    $('genBtn').textContent = `开始生成（${cost}点）`;
   }
 }
 
@@ -545,6 +600,7 @@ function downloadImage() {
   link.href = url;
   link.download = filename;
   link.click();
+  showToast('已保存到本地');
 }
 
 
@@ -607,12 +663,19 @@ function updateMineDisplay() {
     }
     setText('mineHint', '');
     setText('pointsNum', userInfo.points);
+    setDisplay('mineLoginBtn', 'none');
+    setDisplay('pointsCard', 'flex');
+    setDisplay('historyBtn', 'flex');
+    setDisplay('logoutBtn', 'block');
     setDisplay('adminEntry', userInfo.is_admin ? 'flex' : 'none');
   } else {
-    setText('mineAvatar', '?');
-    setText('mineName', '点击登录');
-    setText('mineHint', '登录后可使用生成功能');
-    setText('pointsNum', '--');
+    setText('mineAvatar', '👤');
+    setText('mineName', '未登录');
+    setText('mineHint', '登录后可使用AI生成功能');
+    setDisplay('mineLoginBtn', 'block');
+    setDisplay('pointsCard', 'none');
+    setDisplay('historyBtn', 'none');
+    setDisplay('logoutBtn', 'none');
     setDisplay('adminEntry', 'none');
   }
 }
@@ -657,23 +720,23 @@ async function doRecharge() {
       throw new Error(res.message || '创建订单失败');
     }
 
-  let confirmed = false;
-  for (let attempt = 0; attempt < 8; attempt += 1) {
-    await sleep(attempt === 0 ? 1800 : 1000);
-    const confirmRes = await api('/payment/confirm', {
-      method: 'POST',
-      body: JSON.stringify({ orderId: res.data.orderId })
-    });
+    let confirmed = false;
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      await sleep(attempt === 0 ? 1800 : 1000);
+      const confirmRes = await api('/payment/confirm', {
+        method: 'POST',
+        body: JSON.stringify({ orderId: res.data.orderId })
+      });
 
-    if (confirmRes.code !== 0) {
-      throw new Error(confirmRes.message || '支付状态查询失败');
-    }
+      if (confirmRes.code !== 0) {
+        throw new Error(confirmRes.message || '支付状态查询失败');
+      }
 
-    if (confirmRes.data.success) {
-      confirmed = true;
-      break;
+      if (confirmRes.data.success) {
+        confirmed = true;
+        break;
+      }
     }
-  }
 
     if (!confirmed) {
       throw new Error('支付处理中，请稍后在点数余额中确认');
@@ -694,64 +757,92 @@ async function doRecharge() {
 
 $('payBtn')?.addEventListener('click', doRecharge);
 
+let historyOffset = 0;
+let historyLoading = false;
+let historyDone = false;
+let historyScrollHandler = null;
+const HISTORY_BATCH = 10;
+
+function renderHistoryItems(items, listEl) {
+  const html = items.map(item => {
+    const imgUrl = item.thumbUrl || item.imagePaths?.[0];
+    const fullUrl = item.imagePaths?.[0];
+    const sceneName = MATERIALS.find(m => m.key === item.scene)?.name || item.scene;
+    return `
+    <div class="history-card" data-full-url="${escapeHtml(fullUrl || '')}">
+      <div class="history-card-img">${imgUrl ? `<img src="${imgUrl}" alt="${escapeHtml(sceneName)}" loading="lazy">` : '<span class="history-card-empty">暂无图片</span>'}</div>
+      <div class="history-card-label">${escapeHtml(sceneName)}</div>
+    </div>
+    `;
+  }).join('');
+  listEl.insertAdjacentHTML('beforeend', html);
+
+  const cards = listEl.querySelectorAll('.history-card');
+  items.forEach((item, i) => {
+    const card = cards[cards.length - items.length + i];
+    if (card) {
+      card.addEventListener('click', () => {
+        const fullUrl = card.dataset.fullUrl;
+        if (fullUrl) {
+          $('fullscreenImg').src = fullUrl;
+          $('fullscreenViewer').style.display = 'flex';
+        }
+      });
+    }
+  });
+}
+
+async function loadMoreHistory(listEl) {
+  if (historyLoading || historyDone) return;
+  historyLoading = true;
+
+  try {
+    const res = await api(`/generate/history?limit=${HISTORY_BATCH}&offset=${historyOffset}`);
+    if (res.code !== 0 || !res.data?.length) {
+      historyDone = true;
+      return;
+    }
+    renderHistoryItems(res.data, listEl);
+    historyOffset += res.data.length;
+    if (res.data.length < HISTORY_BATCH) historyDone = true;
+  } catch { showToast('加载历史记录失败'); } finally {
+    historyLoading = false;
+  }
+}
+
 async function loadHistory() {
   showPage('history');
   const list = $('historyList');
   if (!list) return;
-  list.innerHTML = '<div class="history-list"><div class="history-loading">加载中...</div></div>';
 
-  try {
-    const res = await api('/generate/history?limit=20');
-    if (res.code !== 0 || !res.data?.length) {
-      list.innerHTML = `
-      <div class="history-empty">
-        <div class="history-empty-icon">🎨</div>
-        <div class="history-empty-title">暂无生成记录</div>
-        <div class="history-empty-desc">去创作你的第一张AI广告设计吧</div>
-      </div>`;
-      return;
-    }
+  historyOffset = 0;
+  historyLoading = false;
+  historyDone = false;
 
-    const listEl = list.querySelector('.history-list');
-    if (!listEl) return;
-    listEl.innerHTML = res.data.map(item => {
-      const firstUrl = item.imagePaths?.[0];
-      const sceneName = MATERIALS.find(m => m.key === item.scene)?.name || item.scene;
-      return `
-      <div class="history-card">
-        <div class="history-card-img">${firstUrl ? `<img src="${firstUrl}" alt="${escapeHtml(sceneName)}">` : '<span class="history-card-empty">暂无图片</span>'}</div>
-        <div class="history-card-label">${escapeHtml(sceneName)}</div>
-      </div>
-      `;
-    }).join('');
+  list.innerHTML = '<div class="history-list" id="historyListInner"></div>';
+  const listEl = $('historyListInner');
 
-    listEl.querySelectorAll('.history-card').forEach((card, i) => {
-      card.addEventListener('click', () => {
-        const item = res.data[i];
-        const matIndex = MATERIALS.findIndex(m => m.key === item.scene);
-        if (matIndex >= 0) selectMaterial(matIndex);
-        $('textInput').value = item.prompt || '';
-        $('sizeWidth').value = item.width;
-        $('sizeHeight').value = item.height;
-        validateSize();
-        currentResultImages = item.imagePaths || [];
-        currentResultIndex = 0;
-        resultSourcePage = 'history';
-        $('loadingWrap').style.display = 'none';
-        $('errorState').style.display = 'none';
-        $('resultWrap').style.display = 'flex';
-        showResultImage(0);
-        showPage('result');
-      });
-    });
-  } catch {
+  await loadMoreHistory(listEl);
+
+  if (historyOffset === 0) {
     list.innerHTML = `
-      <div class="history-empty">
-        <div class="history-empty-icon">😵</div>
-        <div class="history-empty-title">加载失败</div>
-        <div class="history-empty-desc">请稍后重试</div>
-      </div>`;
+    <div class="history-empty">
+      <div class="history-empty-icon">🎨</div>
+      <div class="history-empty-title">暂无生成记录</div>
+      <div class="history-empty-desc">去创作你的第一张AI广告设计吧</div>
+    </div>`;
+    return;
   }
+
+  // 滚动到底部自动加载更多（移除旧监听器防止重复绑定）
+  const mainEl = list.closest('.main') || list;
+  if (historyScrollHandler) mainEl.removeEventListener('scroll', historyScrollHandler);
+  historyScrollHandler = () => {
+    if (mainEl.scrollTop + mainEl.clientHeight >= mainEl.scrollHeight - 100) {
+      loadMoreHistory(listEl);
+    }
+  };
+  mainEl.addEventListener('scroll', historyScrollHandler);
 }
 
 function showConfirm(message, onOk) {

@@ -24,7 +24,7 @@ module.exports = {
   // 公网可访问的基础 URL（用于参考图 URL 构造，留空则从请求头推断）
   PUBLIC_BASE_URL: (process.env.PUBLIC_BASE_URL || '').replace(/\/+$/, ''),
 
-  // 图床 API Token（sm.ms）
+  // 图床 API Token（imgbb）
   IMAGE_HOST_TOKEN: process.env.IMAGE_HOST_TOKEN || '',
   
   // JWT 配置
@@ -40,6 +40,7 @@ module.exports = {
 NEW_USER_POINTS: parseInt(process.env.NEW_USER_POINTS, 10) || 10,
 POINTS_PER_GENERATE: parseInt(process.env.POINTS_PER_GENERATE, 10) || 1,
 POINTS_PER_GENERATE_HD: parseInt(process.env.POINTS_PER_GENERATE_HD, 10) || 2,
+POINTS_PER_GENERATE_4K: parseInt(process.env.POINTS_PER_GENERATE_4K, 10) || 3,
   
   // 充值套餐（价格：分，点数）
   RECHARGE_PACKAGES: {

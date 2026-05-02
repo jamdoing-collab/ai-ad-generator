@@ -62,7 +62,7 @@ function decryptValue(ciphertext) {
   }
 }
 
-const SENSITIVE_SETTINGS = ['openai_api_key', 'openai_base_url'];
+const SENSITIVE_SETTINGS = ['openai_api_key', 'openai_base_url', 'image_host_token'];
 
 const ALLOWED_TABLES = ['users', 'sessions', 'images', 'point_changes', 'orders', 'settings'];
 
@@ -543,11 +543,6 @@ function getImageById(id) {
   return null;
 }
 
-function getImagePathsById(id) {
-  const image = getImageById(id);
-  return image ? image.image_paths : [];
-}
-
 function createOrder(userId, packageId, amount, points) {
   db.run('INSERT INTO orders (user_id, package_id, amount, points) VALUES (?, ?, ?, ?)',
     [userId, packageId, amount, points]);
@@ -647,7 +642,6 @@ module.exports = {
   saveImage,
   getUserImages,
   getImageById,
-  getImagePathsById,
   createOrder,
   completeOrderAtomic,
   getOrderById,

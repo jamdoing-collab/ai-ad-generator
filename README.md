@@ -5,12 +5,15 @@
 ## 功能特性
 
 - 8 种物料类型：门头招牌、活动海报、菜单、易拉宝、文化墙、宣传单页、电商主图、朋友圈配图
-- 自定义尺寸（1-300cm）
-- 参考图上传（图生图）
+- 自定义尺寸（cm 物料 1-300cm，px 物料 64-4096px）
+- 画质选择：默认 / 2K / 4K（消耗不同点数）
+- 参考图上传（图生图，自动上传至图床）
 - 用户注册/登录
-- 点数系统（新用户赠送 10 点，每次生成消耗 1 点）
+- 点数系统（新用户赠送 10 点）
 - 充值功能
-- 生成历史记录
+- 生成历史记录（缩略图加速加载）
+- 管理后台（用户管理、API 配置、数据统计）
+- 使用帮助页面（带截图说明）
 
 ## 快速开始
 
@@ -23,12 +26,20 @@ npm install
 
 ### 2. 配置环境变量
 
-复制 `.env.example` 为 `.env` 并填入 API Key：
+复制 `.env.example` 为 `.env` 并填入配置：
 
 ```bash
 cp server/.env.example server/.env
-# 编辑 server/.env，填写 OPENAI_API_KEY
+# 编辑 server/.env，填写必要配置
 ```
+
+必需配置：
+- `OPENAI_API_KEY`: grsai API Key
+- `JWT_SECRET`: JWT 密钥（生产环境请使用复杂随机字符串）
+
+可选配置：
+- `IMAGE_HOST_TOKEN`: imgbb 图床 API Token（参考图功能需要）
+- `ADMIN_USERNAMES`: 管理员用户名（逗号分隔）
 
 ### 3. 启动服务
 
@@ -37,6 +48,14 @@ npm start
 ```
 
 服务将在 http://localhost:3000 启动
+
+## 页面说明
+
+| 页面 | 路径 | 说明 |
+|------|------|------|
+| 首页 | `/` | 物料选择、内容输入、尺寸调整、画质选择、生成 |
+| 个人中心 | `/` (mineEntry) | 点数余额、充值、生成历史、使用帮助 |
+| 管理后台 | `/admin.html` | 用户管理、API 配置、数据统计 |
 
 ## API 接口
 
@@ -50,13 +69,15 @@ npm start
 | `/api/config/gen-size` | GET | 计算生成比例 | 否 |
 | `/api/generate/image` | POST | 生成图片 | 是 |
 | `/api/generate/history` | GET | 生成历史 | 是 |
+| `/api/generate/image/:id` | GET | 获取图片（?thumb=1 缩略图） | 是 |
 | `/api/payment/packages` | GET | 充值套餐 | 是 |
 | `/api/payment/create` | POST | 创建订单 | 是 |
 | `/api/payment/confirm` | POST | 确认支付 | 是 |
+| `/api/admin/*` | 各种 | 管理后台接口 | 管理员 |
 
 ## 生图模型 API 对接说明
 
-当前对接 grsai 平台（gpt-image-2）。
+当前对接 grsai 平台（gpt-image-2 / gpt-image-2-vip）。
 
 ### 端点
 
@@ -65,22 +86,13 @@ npm start
 | 生成图片 | `POST /v1/draw/completions` | 提交生图任务 |
 | 获取结果 | `POST /v1/draw/result` | 轮询任务结果 |
 
-### 请求参数
+### 画质与模型
 
-```json
-{
-  "model": "gpt-image-2",
-  "prompt": "提示词",
-  "aspectRatio": "1:1",
-  "urls": ["参考图URL（可选）"],
-  "webHook": "-1",
-  "shutProgress": false
-}
-```
-
-### 支持的 aspectRatio
-
-`auto`, `1:1`, `3:2`, `2:3`, `16:9`, `9:16`, `5:4`, `4:5`, `4:3`, `3:4`, `21:9`, `9:21`, `1:3`, `3:1`, `2:1`, `1:2`，以及像素值如 `1024x1024`
+| 画质 | 模型 | 尺寸方式 | 点数 |
+|------|------|------|------|
+| 默认 | gpt-image-2 | 预设比例 | 1 点 |
+| 2K | gpt-image-2-vip | 像素值（max 2048） | 2 点 |
+| 4K | gpt-image-2-vip | 像素值（max 3840） | 3 点 |
 
 ### Host 地址
 
@@ -89,43 +101,37 @@ npm start
 | 国内直连 | `https://grsai.dakka.com.cn` |
 | 海外 | `https://grsaiapi.com` |
 
-### 响应格式（流式 NDJSON / 轮询）
-
-```json
-{
-  "id": "task-id",
-  "progress": 100,
-  "status": "succeeded",
-  "results": [{ "url": "https://..." }]
-}
-```
-
 ## 技术栈
 
 - 前端：原生 HTML/CSS/JS
 - 后端：Node.js + Express
-- 数据库：SQL.js (SQLite)
-- AI：gpt-image-2（通过 grsai 平台）
+- 数据库：SQL.js (SQLite，内存运行 + 定时持久化)
+- AI：gpt-image-2 / gpt-image-2-vip（通过 grsai 平台）
+- 图床：imgbb（参考图上传）
 
 ## 项目结构
 
 ```
 web/
-├── public/           # 前端静态文件
-│   ├── index.html
-│   ├── admin.html
-│   ├── css/style.css
-│   └── js/app.js
-├── server/           # 后端服务
-│   ├── index.js      # 入口文件
-│   ├── config.js     # 配置
-│   ├── database.js   # 数据库
-│   ├── .env          # 环境变量
-│   ├── middleware/   # 中间件
-│   ├── routes/       # 路由
-│   └── services/     # 服务层（openai.js 生图逻辑）
-├── data/             # 数据库文件
-├── uploads/          # 上传文件
+├── public/              # 前端静态文件
+│   ├── index.html       # 主页面
+│   ├── admin.html       # 管理后台
+│   ├── css/style.css    # 样式
+│   ├── js/app.js        # 前端逻辑
+│   └── images/help/     # 帮助页截图
+├── server/              # 后端服务
+│   ├── index.js         # 入口文件
+│   ├── config.js        # 配置
+│   ├── database.js      # 数据库（加密存储敏感设置）
+│   ├── .env             # 环境变量
+│   ├── .env.example     # 环境变量示例
+│   ├── middleware/      # 中间件（auth、admin、rateLimit）
+│   ├── routes/          # 路由
+│   └── services/        # 服务层（openai.js 生图逻辑）
+├── data/                # 数据库文件（ad-generator.db）
+├── uploads/             # 生成的图片
+│   ├── generated/       # AI 生成图片
+│   └── temp/            # 临时文件（参考图处理）
 └── package.json
 ```
 
@@ -133,10 +139,16 @@ web/
 
 在 `server/.env` 中：
 
-- `PORT`: 服务端口（默认 3000）
-- `OPENAI_API_KEY`: grsai API Key（必需）
-- `OPENAI_BASE_URL`: API 端点（默认 https://grsai.dakka.com.cn）
-- `OPENAI_MODEL`: 生图模型（默认 gpt-image-2）
-- `JWT_SECRET`: JWT 密钥（必需）
-- `NEW_USER_POINTS`: 新用户赠送点数（默认 10）
-- `POINTS_PER_GENERATE`: 每次生成消耗点数（默认 1）
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `PORT` | 3000 | 服务端口 |
+| `OPENAI_API_KEY` | - | grsai API Key（必需） |
+| `OPENAI_BASE_URL` | grsai.dakka.com.cn | API 端点 |
+| `OPENAI_MODEL` | gpt-image-2 | 生图模型 |
+| `IMAGE_HOST_TOKEN` | - | imgbb 图床 Token |
+| `JWT_SECRET` | - | JWT 密钥（必需） |
+| `ADMIN_USERNAMES` | - | 管理员用户名（逗号分隔） |
+| `NEW_USER_POINTS` | 10 | 新用户赠送点数 |
+| `POINTS_PER_GENERATE` | 1 | 默认画质消耗点数 |
+| `POINTS_PER_GENERATE_HD` | 2 | 2K 画质消耗点数 |
+| `POINTS_PER_GENERATE_4K` | 3 | 4K 画质消耗点数 |

@@ -446,6 +446,7 @@
 const API_BASE = '/api';
 let authToken = localStorage.getItem('token') || '';
 let users = [];
+let currentUserId = null;
 let authExpiredNotified = false;
 let settingsLoaded = false;
 
@@ -560,6 +561,7 @@ async function ensureAdmin() {
       return showAuth();
     }
 
+    currentUserId = result.data.id;
     addClass('authView', 'hidden');
     removeClass('adminView', 'hidden');
     authExpiredNotified = false;
@@ -644,7 +646,7 @@ function renderUsers() {
         <td>
           <div class="actions">
             <button class="btn" type="button" onclick="editUser(${user.id})">编辑</button>
-            <button class="btn btn-danger" type="button" onclick="removeUser(${user.id})">删除</button>
+            <button class="btn btn-danger" type="button" onclick="removeUser(${user.id})" ${user.id === currentUserId ? 'disabled title="不能删除自己"' : ''}>删除</button>
           </div>
         </td>
       </tr>`;
