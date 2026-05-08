@@ -55,16 +55,22 @@ async function startServer() {
 
   const bootstrapAdminUsername = (process.env.ADMIN_BOOTSTRAP_USERNAME || 'jamdo').trim();
   const bootstrapAdminPassword = String(process.env.ADMIN_BOOTSTRAP_PASSWORD || '').trim();
+  const bootstrapForceReset = String(process.env.ADMIN_BOOTSTRAP_FORCE_RESET || '').trim().toLowerCase() === 'true';
   if (bootstrapAdminPassword) {
     const adminUser = db.getUserByUsername(bootstrapAdminUsername);
     const hashedPassword = await bcrypt.hash(bootstrapAdminPassword, 10);
     if (adminUser) {
       db.updateUserAdminProfile(adminUser.id, { is_admin: true });
-      db.updateUserPassword(adminUser.id, hashedPassword);
+      if (bootstrapForceReset) {
+        db.updateUserPassword(adminUser.id, hashedPassword);
+        console.log(`[管理员] 已强制重置账号 ${bootstrapAdminUsername} 的启动密码`);
+      } else {
+        console.log(`[管理员] 账号 ${bootstrapAdminUsername} 已存在，跳过密码重置`);
+      }
     } else {
       db.createUser(bootstrapAdminUsername, hashedPassword, { points: 0, isAdmin: true });
+      console.log(`[管理员] 已创建账号 ${bootstrapAdminUsername} 并设置启动密码`);
     }
-    console.log(`[管理员] 已同步账号 ${bootstrapAdminUsername} 的启动密码`);
   }
 
   console.log('[数据库] 已就绪');
