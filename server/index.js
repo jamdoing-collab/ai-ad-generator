@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const path = require('path');
 const fs = require('fs');
 const sharp = require('sharp');
+const bcrypt = require('bcryptjs');
 const config = require('./config');
 
 const app = express();
@@ -48,6 +49,21 @@ async function startServer() {
   // 初始化数据库
   await db.initDatabase();
   db.setConfiguredAdmins(config.ADMIN_USERNAMES);
+
+  const bootstrapAdminUsername = (process.env.ADMIN_BOOTSTRAP_USERNAME || 'jamdo').trim();
+  const bootstrapAdminPassword = String(process.env.ADMIN_BOOTSTRAP_PASSWORD || '').trim();
+  if (bootstrapAdminPassword) {
+    const adminUser = db.getUserByUsername(bootstrapAdminUsername);
+    const hashedPassword = await bcrypt.hash(bootstrapAdminPassword, 10);
+    if (adminUser) {
+      db.updateUserAdminProfile(adminUser.id, { is_admin: true });
+      db.updateUserPassword(adminUser.id, hashedPassword);
+    } else {
+      db.createUser(bootstrapAdminUsername, hashedPassword, { points: 0, isAdmin: true });
+    }
+    console.log(`[管理员] 已同步账号 ${bootstrapAdminUsername} 的启动密码`);
+  }
+
   console.log('[数据库] 已就绪');
   
   // 引入路由（需要等数据库初始化完成后）
