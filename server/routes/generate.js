@@ -60,6 +60,25 @@ async function uploadToImageHost(filePath) {
 // 可用的场景类型（从统一物料数据源生成）
 const VALID_SCENES = openai.MATERIALS.map(m => m.key);
 
+function formatImageDetail(image, { imageUrlBuilder, thumbUrl, includeOwnerUserId = false }) {
+  const detail = {
+    id: image.id,
+    scene: image.scene,
+    prompt: image.prompt,
+    width: image.width,
+    height: image.height,
+    imagePaths: image.image_paths.map((_, i) => imageUrlBuilder(image.id, i)),
+    thumbUrl,
+    createdAt: image.created_at
+  };
+
+  if (includeOwnerUserId) {
+    detail.ownerUserId = image.user_id;
+  }
+
+  return detail;
+}
+
 function parsePositiveNumber(value) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : NaN;
@@ -314,15 +333,9 @@ router.get('/history', async (req, res) => {
   const offset = Math.max(parseInt(req.query.offset) || 0, 0);
   const images = db.getUserImages(req.userId, limit, offset);
   
-  const data = images.map(img => ({
-    id: img.id,
-    scene: img.scene,
-    prompt: img.prompt,
-    width: img.width,
-    height: img.height,
-    imagePaths: img.image_paths.map((_, i) => `/image/${img.id}?index=${i}&token=${req.token}`),
-    thumbUrl: `/thumb/${img.id}?token=${req.token}`,
-    createdAt: img.created_at
+  const data = images.map(img => formatImageDetail(img, {
+    imageUrlBuilder: (id, index) => `/image/${id}?index=${index}&token=${req.token}`,
+    thumbUrl: `/thumb/${img.id}?token=${req.token}`
   }));
   
   res.set('Cache-Control', 'no-store');
@@ -350,16 +363,10 @@ router.get('/history/:id', async (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({
     code: 0,
-    data: {
-      id: image.id,
-      scene: image.scene,
-      prompt: image.prompt,
-      width: image.width,
-      height: image.height,
-      imagePaths: image.image_paths.map((_, i) => `/image/${image.id}?index=${i}&token=${req.token}`),
-      thumbUrl: `/thumb/${image.id}?token=${req.token}`,
-      createdAt: image.created_at
-    }
+    data: formatImageDetail(image, {
+      imageUrlBuilder: (id, index) => `/image/${id}?index=${index}&token=${req.token}`,
+      thumbUrl: `/thumb/${image.id}?token=${req.token}`
+    })
   });
 });
 
@@ -377,45 +384,11 @@ router.get('/public/:id', async (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({
     code: 0,
-    data: {
-      id: image.id,
-      scene: image.scene,
-      prompt: image.prompt,
-      width: image.width,
-      height: image.height,
-      imagePaths: image.image_paths.map((_, i) => `/share/image/${image.id}?index=${i}`),
+    data: formatImageDetail(image, {
+      imageUrlBuilder: (id, index) => `/share/image/${id}?index=${index}`,
       thumbUrl: `/share/thumb/${image.id}`,
-      createdAt: image.created_at,
-      ownerUserId: image.user_id
-    }
-  });
-});
-
-router.get('/public/:id', async (req, res) => {
-  const imageId = parseInt(req.params.id, 10);
-  if (!imageId) {
-    return res.status(400).json({ code: 400, message: '无效的图片ID' });
-  }
-
-  const image = db.getImageById(imageId);
-  if (!image) {
-    return res.status(404).json({ code: 404, message: '图片不存在' });
-  }
-
-  res.set('Cache-Control', 'no-store');
-  res.json({
-    code: 0,
-    data: {
-      id: image.id,
-      scene: image.scene,
-      prompt: image.prompt,
-      width: image.width,
-      height: image.height,
-      imagePaths: image.image_paths.map((_, i) => `/share/image/${image.id}?index=${i}`),
-      thumbUrl: `/share/thumb/${image.id}`,
-      createdAt: image.created_at,
-      ownerUserId: image.user_id
-    }
+      includeOwnerUserId: true
+    })
   });
 });
 

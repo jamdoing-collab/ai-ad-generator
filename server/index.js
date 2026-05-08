@@ -76,35 +76,43 @@ async function startServer() {
   console.log('[数据库] 已就绪');
   
   // 引入路由（需要等数据库初始化完成后）
-  const authRoutes = require('./routes/auth');
-  const userRoutes = require('./routes/user');
-  const generateRoutes = require('./routes/generate');
+const authRoutes = require('./routes/auth');
+const userRoutes = require('./routes/user');
+const generateRoutes = require('./routes/generate');
   const paymentRoutes = require('./routes/payment');
   const adminRoutes = require('./routes/admin');
   const configRoutes = require('./routes/config');
-  const auth = require('./middleware/auth');
-  const rateLimit = require('./middleware/rateLimit');
-  const generateRateLimit = require('./middleware/generateRateLimit');
+const auth = require('./middleware/auth');
+const rateLimit = require('./middleware/rateLimit');
+const generateRateLimit = require('./middleware/generateRateLimit');
 
-// 缩略图（需登录，仅可访问自己图片）
-const thumbRouter = express.Router();
-thumbRouter.get('/:id', auth, async (req, res) => {
+async function resolveImageFilePath(req, { requireOwnership }) {
+  const imageId = parseInt(req.params.id);
+  if (!imageId) return { error: { status: 400, body: { code: 400, message: '无效的图片ID' } } };
+
+  const image = db.getImageById(imageId);
+  if (!image) return { error: { status: 404, body: { code: 404, message: '图片不存在' } } };
+
+  if (requireOwnership && image.user_id !== req.userId) {
+    return { error: { status: 403, body: { code: 403, message: '无权访问' } } };
+  }
+
+  const index = parseInt(req.query.index) || 0;
+  const imagePath = image.image_paths[index];
+  if (!imagePath) return { error: { status: 404, body: { code: 404, message: '图片不存在' } } };
+
+  const fullPath = path.resolve(__dirname, '../uploads', imagePath.replace(/^\/uploads\//, ''));
+  if (!fullPath.startsWith(path.resolve(__dirname, '../uploads') + path.sep)) {
+    return { error: { status: 403, body: { code: 403, message: '非法图片路径' } } };
+  }
+
+  return { fullPath };
+}
+
+async function sendThumbResponse(req, res, { cacheControl, errorLabel, requireOwnership }) {
   try {
-    const imageId = parseInt(req.params.id);
-    if (!imageId) return res.status(400).json({ code: 400, message: '无效的图片ID' });
-
-    const image = db.getImageById(imageId);
-    if (!image) return res.status(404).json({ code: 404, message: '图片不存在' });
-    if (image.user_id !== req.userId) return res.status(403).json({ code: 403, message: '无权访问' });
-
-    const index = parseInt(req.query.index) || 0;
-    const imagePath = image.image_paths[index];
-    if (!imagePath) return res.status(404).json({ code: 404, message: '图片不存在' });
-
-    const fullPath = path.resolve(__dirname, '../uploads', imagePath.replace(/^\/uploads\//, ''));
-    if (!fullPath.startsWith(path.resolve(__dirname, '../uploads') + path.sep)) {
-      return res.status(403).json({ code: 403, message: '非法图片路径' });
-    }
+    const { fullPath, error } = await resolveImageFilePath(req, { requireOwnership });
+    if (error) return res.status(error.status).json(error.body);
 
     const thumbBuffer = await sharp(fullPath)
       .resize(600, 600, { fit: 'inside', withoutEnlargement: true })
@@ -112,103 +120,67 @@ thumbRouter.get('/:id', auth, async (req, res) => {
       .toBuffer();
 
     res.set('Content-Type', 'image/jpeg');
-    res.set('Cache-Control', 'private, max-age=604800');
+    res.set('Cache-Control', cacheControl);
     res.send(thumbBuffer);
   } catch (err) {
-    console.error('[缩略图错误]', err.message);
+    console.error(`[${errorLabel}]`, err.message);
     res.status(500).json({ code: 500, message: '获取缩略图失败' });
   }
+}
+
+async function sendImageResponse(req, res, { cacheControl, errorLabel, requireOwnership }) {
+  try {
+    const { fullPath, error } = await resolveImageFilePath(req, { requireOwnership });
+    if (error) return res.status(error.status).json(error.body);
+
+    res.set('Content-Type', 'image/png');
+    res.set('Cache-Control', cacheControl);
+    res.sendFile(fullPath);
+  } catch (err) {
+    console.error(`[${errorLabel}]`, err.message);
+    res.status(500).json({ code: 500, message: '获取图片失败' });
+  }
+}
+
+// 缩略图（需登录，仅可访问自己图片）
+const thumbRouter = express.Router();
+thumbRouter.get('/:id', auth, async (req, res) => {
+  return sendThumbResponse(req, res, {
+    cacheControl: 'private, max-age=604800',
+    errorLabel: '缩略图错误',
+    requireOwnership: true
+  });
 });
 app.use('/thumb', thumbRouter);
 
 const publicThumbRouter = express.Router();
 publicThumbRouter.get('/:id', async (req, res) => {
-  try {
-    const imageId = parseInt(req.params.id);
-    if (!imageId) return res.status(400).json({ code: 400, message: '无效的图片ID' });
-
-    const image = db.getImageById(imageId);
-    if (!image) return res.status(404).json({ code: 404, message: '图片不存在' });
-
-    const index = parseInt(req.query.index) || 0;
-    const imagePath = image.image_paths[index];
-    if (!imagePath) return res.status(404).json({ code: 404, message: '图片不存在' });
-
-    const fullPath = path.resolve(__dirname, '../uploads', imagePath.replace(/^\/uploads\//, ''));
-    if (!fullPath.startsWith(path.resolve(__dirname, '../uploads') + path.sep)) {
-      return res.status(403).json({ code: 403, message: '非法图片路径' });
-    }
-
-    const thumbBuffer = await sharp(fullPath)
-      .resize(600, 600, { fit: 'inside', withoutEnlargement: true })
-      .jpeg({ quality: 85 })
-      .toBuffer();
-
-    res.set('Content-Type', 'image/jpeg');
-    res.set('Cache-Control', 'public, max-age=604800');
-    res.send(thumbBuffer);
-  } catch (err) {
-    console.error('[公开缩略图错误]', err.message);
-    res.status(500).json({ code: 500, message: '获取缩略图失败' });
-  }
+  return sendThumbResponse(req, res, {
+    cacheControl: 'public, max-age=604800',
+    errorLabel: '公开缩略图错误',
+    requireOwnership: false
+  });
 });
 app.use('/share/thumb', publicThumbRouter);
 
 // 完整图片（需登录，仅可访问自己图片）
 const imageRouter = express.Router();
 imageRouter.get('/:id', auth, async (req, res) => {
-  try {
-    const imageId = parseInt(req.params.id);
-    if (!imageId) return res.status(400).json({ code: 400, message: '无效的图片ID' });
-
-    const image = db.getImageById(imageId);
-    if (!image) return res.status(404).json({ code: 404, message: '图片不存在' });
-    if (image.user_id !== req.userId) return res.status(403).json({ code: 403, message: '无权访问' });
-
-    const index = parseInt(req.query.index) || 0;
-    const imagePath = image.image_paths[index];
-    if (!imagePath) return res.status(404).json({ code: 404, message: '图片不存在' });
-
-    const fullPath = path.resolve(__dirname, '../uploads', imagePath.replace(/^\/uploads\//, ''));
-    if (!fullPath.startsWith(path.resolve(__dirname, '../uploads') + path.sep)) {
-      return res.status(403).json({ code: 403, message: '非法图片路径' });
-    }
-
-    res.set('Content-Type', 'image/png');
-    res.set('Cache-Control', 'private, max-age=86400');
-    res.sendFile(fullPath);
-  } catch (err) {
-    console.error('[图片错误]', err.message);
-    res.status(500).json({ code: 500, message: '获取图片失败' });
-  }
+  return sendImageResponse(req, res, {
+    cacheControl: 'private, max-age=86400',
+    errorLabel: '图片错误',
+    requireOwnership: true
+  });
 });
 app.use('/image', imageRouter);
 
 const publicImageRouter = express.Router();
 publicImageRouter.get('/:id', async (req, res) => {
-  try {
-    const imageId = parseInt(req.params.id);
-    if (!imageId) return res.status(400).json({ code: 400, message: '无效的图片ID' });
-
-    const image = db.getImageById(imageId);
-    if (!image) return res.status(404).json({ code: 404, message: '图片不存在' });
-
-    const index = parseInt(req.query.index) || 0;
-    const imagePath = image.image_paths[index];
-    if (!imagePath) return res.status(404).json({ code: 404, message: '图片不存在' });
-
-    const fullPath = path.resolve(__dirname, '../uploads', imagePath.replace(/^\/uploads\//, ''));
-    if (!fullPath.startsWith(path.resolve(__dirname, '../uploads') + path.sep)) {
-      return res.status(403).json({ code: 403, message: '非法图片路径' });
-    }
-
-    res.set('Content-Type', 'image/png');
-    res.set('Cache-Control', 'public, max-age=86400');
-    res.sendFile(fullPath);
-  } catch (err) {
-    console.error('[公开图片错误]', err.message);
-    res.status(500).json({ code: 500, message: '获取图片失败' });
-  }
+  return sendImageResponse(req, res, {
+    cacheControl: 'public, max-age=86400',
+    errorLabel: '公开图片错误',
+    requireOwnership: false
+  });
 });
 app.use('/share/image', publicImageRouter);
 
