@@ -431,6 +431,11 @@ function bindMobileEvents() {
 
   $('historyBtn').addEventListener('click', loadHistory);
   $('historyDetailBackBtn').addEventListener('click', () => {
+    if (getShareImageId()) {
+      history.replaceState(null, '', window.location.pathname);
+      showPage('generate');
+      return;
+    }
     if (window.location.hash.startsWith('#history-')) history.replaceState(null, '', window.location.pathname + window.location.search);
     showPage('history');
   });
