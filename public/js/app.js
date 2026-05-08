@@ -370,9 +370,8 @@ function bindMobileEvents() {
 
   $('mineEntry').addEventListener('click', () => {
     if (!userInfo) {
-      pendingMineAfterLogin = true;
-      showToast('请先登录后进入个人中心');
-      showLoginModal();
+      updateMineDisplay();
+      showPage('mine');
       return;
     }
     updateMineDisplay();
