@@ -123,7 +123,6 @@ CREATE TABLE IF NOT EXISTS users (
 )
   `);
   ensureUserColumns();
-  migrateSettingsIfNeeded();
   
   db.run(`
     CREATE TABLE IF NOT EXISTS sessions (
@@ -185,6 +184,8 @@ CREATE TABLE IF NOT EXISTS users (
       updated_at TEXT DEFAULT (datetime('now'))
     )
   `);
+
+  migrateSettingsIfNeeded();
 
   db.run(`
     CREATE TABLE IF NOT EXISTS invite_rewards (
