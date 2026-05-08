@@ -103,7 +103,7 @@ function renderResultDetailMeta() {
   setText('resultDetailSize', size);
 }
 
-function applyHistoryDetailView(item, { canEdit = false, title = '作品详情', imagePathPrefix = '/image' } = {}) {
+function applyHistoryDetailView(item, { canEdit = false, title = '作品详情' } = {}) {
   const fullUrl = item.imagePaths?.[0] || '';
   const sceneName = MATERIALS.find(m => m.key === item.scene)?.name || item.scene;
   const width = item.width || 0;
