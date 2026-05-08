@@ -8,7 +8,7 @@
 - 自定义尺寸（cm 物料 1-300cm，px 物料 64-4096px）
 - 画质选择：默认 / 2K / 4K（消耗不同点数）
 - 参考图上传（图生图，自动上传至图床）
-- 用户注册/登录
+- 用户注册/登录（当前按手机号作为账号）
 - 点数系统（新用户赠送 10 点）
 - 充值功能
 - 生成历史记录（缩略图加速加载）
@@ -39,7 +39,7 @@ cp server/.env.example server/.env
 
 可选配置：
 - `IMAGE_HOST_TOKEN`: imgbb 图床 API Token（参考图功能需要）
-- `ADMIN_USERNAMES`: 管理员用户名（逗号分隔）
+- `ADMIN_USERNAMES`: 管理员手机号/账号（逗号分隔）
 
 ### 3. 启动服务
 
@@ -47,7 +47,7 @@ cp server/.env.example server/.env
 npm start
 ```
 
-服务将在 http://localhost:3000 启动
+服务将在 `PORT` 指定端口启动；本地默认示例为 `http://localhost:3000`，当前开发环境常用 `3003`。
 
 ## 页面说明
 
@@ -69,8 +69,9 @@ npm start
 | `/api/config/gen-size` | GET | 计算生成比例 | 否 |
 | `/api/generate/image` | POST | 生成图片 | 是 |
 | `/api/generate/history` | GET | 生成历史 | 是 |
-| `/api/generate/image/:id` | GET | 获取图片（?thumb=1 缩略图） | 是 |
-| `/api/payment/packages` | GET | 充值套餐 | 是 |
+| `/image/:id` | GET | 获取完整图片 | 是 |
+| `/thumb/:id` | GET | 获取缩略图 | 是 |
+| `/api/payment/packages` | GET | 充值套餐 | 否 |
 | `/api/payment/create` | POST | 创建订单 | 是 |
 | `/api/payment/confirm` | POST | 确认支付 | 是 |
 | `/api/admin/*` | 各种 | 管理后台接口 | 管理员 |
@@ -108,6 +109,12 @@ npm start
 - 数据库：SQL.js (SQLite，内存运行 + 定时持久化)
 - AI：gpt-image-2 / gpt-image-2-vip（通过 grsai 平台）
 - 图床：imgbb（参考图上传）
+
+## Railway 部署
+
+已验证可部署到 Railway。详细步骤见：
+
+- [DEPLOY.md](./DEPLOY.md)
 
 ## 项目结构
 
@@ -147,7 +154,7 @@ web/
 | `OPENAI_MODEL` | gpt-image-2 | 生图模型 |
 | `IMAGE_HOST_TOKEN` | - | imgbb 图床 Token |
 | `JWT_SECRET` | - | JWT 密钥（必需） |
-| `ADMIN_USERNAMES` | - | 管理员用户名（逗号分隔） |
+| `ADMIN_USERNAMES` | - | 管理员手机号/账号（逗号分隔） |
 | `NEW_USER_POINTS` | 10 | 新用户赠送点数 |
 | `POINTS_PER_GENERATE` | 1 | 默认画质消耗点数 |
 | `POINTS_PER_GENERATE_HD` | 2 | 2K 画质消耗点数 |
