@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs/promises');
+const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const db = require('../database');
 const config = require('../config');
@@ -12,6 +13,19 @@ const router = express.Router();
 const uploadsRoot = path.resolve(__dirname, '../../uploads');
 const generatedDir = path.join(uploadsRoot, 'generated');
 const MAX_REFERENCE_IMAGE_BYTES = 10 * 1024 * 1024;
+const activeGenerateRequests = new Map();
+const recentGenerateResults = new Map();
+const REQUEST_DEDUPE_WINDOW_MS = 5 * 60 * 1000;
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of activeGenerateRequests) {
+    if (now - entry.startedAt > REQUEST_DEDUPE_WINDOW_MS) activeGenerateRequests.delete(key);
+  }
+  for (const [key, entry] of recentGenerateResults) {
+    if (now - entry.createdAt > REQUEST_DEDUPE_WINDOW_MS) recentGenerateResults.delete(key);
+  }
+}, 30 * 1000);
 
 // 上传图片到 imgbb 图床，返回公网 URL
 async function uploadToImageHost(filePath) {
@@ -53,6 +67,13 @@ function parsePositiveNumber(value) {
   return Number.isFinite(parsed) ? parsed : NaN;
 }
 
+function buildGenerateRequestKey(userId, payload) {
+  return crypto
+    .createHash('sha256')
+    .update(JSON.stringify({ userId, ...payload }))
+    .digest('hex');
+}
+
 async function validateImageFormat(filePath) {
   try {
     const metadata = await sharp(filePath).metadata();
@@ -84,9 +105,11 @@ router.post('/image', async (req, res) => {
     return res.status(401).json({ code: 401, message: '未登录' });
   }
 
+  const requestId = uuidv4().slice(0, 8);
   let referenceImagePath = null;
   let shouldCleanupTemp = false;
   let pointsCost = config.POINTS_PER_GENERATE;
+  let generateRequestKey = null;
 
   try {
     const { scene, text, width = 60, height = 90, quality = 'default', referenceImage, feedback } = req.body;
@@ -124,15 +147,39 @@ router.post('/image', async (req, res) => {
       return res.status(400).json({ code: 400, message: '宽高比超出 1:10 到 10:1 范围' });
     }
 
+    generateRequestKey = buildGenerateRequestKey(req.userId, {
+      scene,
+      text: text.trim(),
+      width: parsedWidth,
+      height: parsedHeight,
+      quality: qualityLevel,
+      referenceImage: referenceImage || null,
+      feedback: (feedback && typeof feedback.trim === 'function') ? feedback.trim() : null
+    });
+
+    const cached = recentGenerateResults.get(generateRequestKey);
+    if (cached) {
+      console.log(`[生成请求:${requestId}] 命中近期成功结果缓存 key=${generateRequestKey.slice(0, 8)}`);
+      return res.json(cached.response);
+    }
+
+    if (activeGenerateRequests.has(generateRequestKey)) {
+      console.warn(`[生成请求:${requestId}] 重复提交被拦截 key=${generateRequestKey.slice(0, 8)}`);
+      return res.status(409).json({ code: 409, message: '相同内容正在生成中，请稍候查看结果' });
+    }
+
+    activeGenerateRequests.set(generateRequestKey, { startedAt: Date.now(), requestId, userId: req.userId });
+    console.log(`[生成请求:${requestId}] 开始 user=${req.userId} scene=${scene} quality=${qualityLevel}`);
+
     // 原子扣点（防止并发竞态）
     const newPoints = db.updateUserPoints(req.userId, -pointsCost);
     if (newPoints === false) {
+      activeGenerateRequests.delete(generateRequestKey);
       return res.status(402).json({ code: 402, message: '点数不足，请先充值' });
     }
     db.logPointChange(req.userId, 'generate', -pointsCost, `生成${scene}图片（${qualityLevel}）`);
+    console.log(`[生成请求:${requestId}] 扣点成功 points=${newPoints}`);
 
-    console.log(`[生成请求] 用户:${req.userId} 场景:${scene}`);
-    
     // 处理参考图
     if (referenceImage) {
       if (referenceImage.startsWith('data:')) {
@@ -173,7 +220,7 @@ router.post('/image', async (req, res) => {
     let referenceImageUrl = null;
     if (referenceImagePath) {
       referenceImageUrl = await uploadToImageHost(referenceImagePath);
-      console.log('[图床上传成功]', referenceImageUrl);
+      console.log(`[生成请求:${requestId}] 图床上传成功`);
     }
 
     // 调用 grsai 生成
@@ -186,6 +233,7 @@ router.post('/image', async (req, res) => {
       referenceImage: referenceImageUrl,
       feedback: (feedback && typeof feedback.trim === 'function') ? feedback.trim() : null
     });
+    console.log(`[生成请求:${requestId}] grsai 成功返回 images=${generatedImages.length}`);
     
     // 保存图片到文件
     const imagePaths = [];
@@ -195,13 +243,14 @@ router.post('/image', async (req, res) => {
       await fs.writeFile(filepath, generatedImages[i].buffer);
       imagePaths.push(`/uploads/generated/${filename}`);
     }
+    console.log(`[生成请求:${requestId}] 本地写文件成功 count=${imagePaths.length}`);
 
     // 保存到数据库
     let imageId;
     try {
       imageId = db.saveImage(req.userId, scene, text.trim(), parsedWidth, parsedHeight, imagePaths);
     } catch (saveErr) {
-      console.error('[保存图片记录失败]', saveErr.message);
+      console.error(`[生成请求:${requestId}] 保存图片记录失败`, saveErr.message);
       for (const p of imagePaths) {
         try { await fs.unlink(path.join(uploadsRoot, p.replace(/^\/uploads\//, ''))); } catch {
         }
@@ -209,7 +258,7 @@ router.post('/image', async (req, res) => {
       return res.status(500).json({ code: 500, message: '生成成功但保存记录失败，请联系客服' });
     }
 
-    console.log(`[生成成功] 图片ID:${imageId}`);
+    console.log(`[生成请求:${requestId}] 数据库保存成功 imageId=${imageId}`);
     if (db.getUserImageCount(req.userId) === 1) {
       const inviteReward = db.awardInviteReward(
         req.userId,
@@ -222,14 +271,19 @@ router.post('/image', async (req, res) => {
       }
     }
     
-    res.json({
+    const responsePayload = {
       code: 0,
       data: {
         images: imagePaths.map((path, i) => ({ index: i, url: `/image/${imageId}?index=${i}&token=${req.token}`, localPath: path })),
         points: newPoints,
         imageId
       }
-    });
+    };
+
+    recentGenerateResults.set(generateRequestKey, { createdAt: Date.now(), response: responsePayload });
+    activeGenerateRequests.delete(generateRequestKey);
+    console.log(`[生成请求:${requestId}] 响应返回成功`);
+    res.json(responsePayload);
     
   } catch (err) {
     // 生成失败，退还点数
@@ -241,7 +295,8 @@ router.post('/image', async (req, res) => {
     }
     generateRateLimit.refundAttempt(req.userId);
 
-    console.error('[生成图片错误]', err.message);
+    if (generateRequestKey) activeGenerateRequests.delete(generateRequestKey);
+    console.error(`[生成请求:${requestId}] 生成图片错误`, err.message);
     if (err.message && (err.message.includes('未配置 API Key') || err.message.includes('未配置 API Base URL'))) {
       return res.status(503).json({ code: 503, message: '图片生成服务未配置，请联系管理员设置 API Key' });
     }

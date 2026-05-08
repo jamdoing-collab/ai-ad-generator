@@ -732,11 +732,15 @@ async function startGenerate() {
       window.location.hash = `result-${currentResultImageId}`;
       updateMineDisplay();
     } else {
-      const msg = res.code === 503 ? '服务未配置密钥，请联系管理员' : res.message;
+      const msg = res.code === 503
+        ? '服务未配置密钥，请联系管理员'
+        : res.code === 409
+          ? '相同内容正在生成中，请稍候查看结果'
+          : res.message;
       throw new Error(msg);
     }
   } catch (err) {
-    if (err.message && err.message.includes('未配置密钥')) {
+    if (err.message && (err.message.includes('未配置密钥') || err.message.includes('正在生成中'))) {
       showToast(err.message);
       showPage('generate');
     } else {
@@ -804,7 +808,11 @@ async function regenerateCurrentDetail(mode) {
       window.location.hash = `${mode}-${currentResultImageId}`;
       showToast('调整完成');
     } else {
-      const msg = res.code === 503 ? '服务未配置密钥，请联系管理员' : res.message;
+      const msg = res.code === 503
+        ? '服务未配置密钥，请联系管理员'
+        : res.code === 409
+          ? '相同内容正在生成中，请稍候查看结果'
+          : res.message;
       throw new Error(msg);
     }
   } catch (err) {
