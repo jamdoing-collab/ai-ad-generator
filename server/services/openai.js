@@ -13,15 +13,15 @@ function getConfig() {
 
 // 物料统一数据源（前后端共享唯一来源）
 const MATERIALS = [
-  { key: 'door', name: '门头招牌', icon: '🏪', desc: 'Storefront signage banner.', defaultW: 300, defaultH: 100 },
-  { key: 'poster', name: '活动海报', icon: '📢', desc: 'Commercial activity poster.', defaultW: 40, defaultH: 60 },
-  { key: 'menu', name: '餐饮菜单', icon: '🍜', desc: 'Restaurant menu page.', defaultW: 21, defaultH: 30 },
-  { key: 'rollup', name: '易拉宝', icon: '🎞️', desc: 'Roll-up display banner.', defaultW: 80, defaultH: 200 },
-  { key: 'wall', name: '文化墙', icon: '🏢', desc: 'Corporate culture wall mural.', defaultW: 300, defaultH: 150 },
-  { key: 'brochure', name: '宣传册封面', icon: '📒', desc: 'Product brochure front cover and back cover spread, no spine, A3 landscape format, professional editorial design, clean luxury style.', defaultW: 42, defaultH: 29 },
-  { key: 'flyer', name: '宣传单页', icon: '📄', desc: 'Promotional flyer.', defaultW: 21, defaultH: 30 },
-  { key: 'ecom', name: '电商主图', icon: '🛒', desc: 'E-commerce product main image.', defaultW: 1024, defaultH: 1024, unit: 'px' },
-  { key: 'moment', name: '朋友圈配图', icon: '📱', desc: 'WeChat Moments share image.', defaultW: 1024, defaultH: 1024, unit: 'px' },
+  { key: 'door', name: '门头招牌', icon: '🏪', desc: 'Storefront signage banner.', defaultW: 300, defaultH: 100, defaultAspectRatio: '3:1' },
+  { key: 'poster', name: '活动海报', icon: '📢', desc: 'Commercial activity poster.', defaultW: 40, defaultH: 60, defaultAspectRatio: '2:3' },
+  { key: 'menu', name: '餐饮菜单', icon: '🍜', desc: 'Restaurant menu page.', defaultW: 21, defaultH: 30, defaultAspectRatio: '2:3' },
+  { key: 'rollup', name: '易拉宝', icon: '🎞️', desc: 'Roll-up display banner.', defaultW: 80, defaultH: 200, defaultAspectRatio: '2:5' },
+  { key: 'wall', name: '文化墙', icon: '🏢', desc: 'Corporate culture wall mural.', defaultW: 300, defaultH: 150, defaultAspectRatio: '2:1' },
+  { key: 'brochure', name: '宣传册封面', icon: '📒', desc: 'Product brochure front cover and back cover spread, no spine, A3 landscape format, professional editorial design, clean luxury style.', defaultW: 42, defaultH: 29, defaultAspectRatio: '3:2' },
+  { key: 'flyer', name: '宣传单页', icon: '📄', desc: 'Promotional flyer.', defaultW: 21, defaultH: 30, defaultAspectRatio: '2:3' },
+  { key: 'ecom', name: '电商主图', icon: '🛒', desc: 'E-commerce product main image.', defaultW: 1024, defaultH: 1024, unit: 'px', defaultAspectRatio: '1:1' },
+  { key: 'moment', name: '朋友圈配图', icon: '📱', desc: 'WeChat Moments share image.', defaultW: 1024, defaultH: 1024, unit: 'px', defaultAspectRatio: '1:1' },
 ];
 
 const SCENE_DESCS = Object.fromEntries(
