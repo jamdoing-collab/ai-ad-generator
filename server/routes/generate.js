@@ -363,4 +363,60 @@ router.get('/history/:id', async (req, res) => {
   });
 });
 
+router.get('/public/:id', async (req, res) => {
+  const imageId = parseInt(req.params.id, 10);
+  if (!imageId) {
+    return res.status(400).json({ code: 400, message: '无效的图片ID' });
+  }
+
+  const image = db.getImageById(imageId);
+  if (!image) {
+    return res.status(404).json({ code: 404, message: '图片不存在' });
+  }
+
+  res.set('Cache-Control', 'no-store');
+  res.json({
+    code: 0,
+    data: {
+      id: image.id,
+      scene: image.scene,
+      prompt: image.prompt,
+      width: image.width,
+      height: image.height,
+      imagePaths: image.image_paths.map((_, i) => `/share/image/${image.id}?index=${i}`),
+      thumbUrl: `/share/thumb/${image.id}`,
+      createdAt: image.created_at,
+      ownerUserId: image.user_id
+    }
+  });
+});
+
+router.get('/public/:id', async (req, res) => {
+  const imageId = parseInt(req.params.id, 10);
+  if (!imageId) {
+    return res.status(400).json({ code: 400, message: '无效的图片ID' });
+  }
+
+  const image = db.getImageById(imageId);
+  if (!image) {
+    return res.status(404).json({ code: 404, message: '图片不存在' });
+  }
+
+  res.set('Cache-Control', 'no-store');
+  res.json({
+    code: 0,
+    data: {
+      id: image.id,
+      scene: image.scene,
+      prompt: image.prompt,
+      width: image.width,
+      height: image.height,
+      imagePaths: image.image_paths.map((_, i) => `/share/image/${image.id}?index=${i}`),
+      thumbUrl: `/share/thumb/${image.id}`,
+      createdAt: image.created_at,
+      ownerUserId: image.user_id
+    }
+  });
+});
+
 module.exports = router;

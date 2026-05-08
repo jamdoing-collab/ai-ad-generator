@@ -121,6 +121,39 @@ thumbRouter.get('/:id', auth, async (req, res) => {
 });
 app.use('/thumb', thumbRouter);
 
+const publicThumbRouter = express.Router();
+publicThumbRouter.get('/:id', async (req, res) => {
+  try {
+    const imageId = parseInt(req.params.id);
+    if (!imageId) return res.status(400).json({ code: 400, message: '无效的图片ID' });
+
+    const image = db.getImageById(imageId);
+    if (!image) return res.status(404).json({ code: 404, message: '图片不存在' });
+
+    const index = parseInt(req.query.index) || 0;
+    const imagePath = image.image_paths[index];
+    if (!imagePath) return res.status(404).json({ code: 404, message: '图片不存在' });
+
+    const fullPath = path.resolve(__dirname, '../uploads', imagePath.replace(/^\/uploads\//, ''));
+    if (!fullPath.startsWith(path.resolve(__dirname, '../uploads') + path.sep)) {
+      return res.status(403).json({ code: 403, message: '非法图片路径' });
+    }
+
+    const thumbBuffer = await sharp(fullPath)
+      .resize(600, 600, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 85 })
+      .toBuffer();
+
+    res.set('Content-Type', 'image/jpeg');
+    res.set('Cache-Control', 'public, max-age=604800');
+    res.send(thumbBuffer);
+  } catch (err) {
+    console.error('[公开缩略图错误]', err.message);
+    res.status(500).json({ code: 500, message: '获取缩略图失败' });
+  }
+});
+app.use('/share/thumb', publicThumbRouter);
+
 // 完整图片（需登录，仅可访问自己图片）
 const imageRouter = express.Router();
 imageRouter.get('/:id', auth, async (req, res) => {
@@ -150,6 +183,34 @@ imageRouter.get('/:id', auth, async (req, res) => {
   }
 });
 app.use('/image', imageRouter);
+
+const publicImageRouter = express.Router();
+publicImageRouter.get('/:id', async (req, res) => {
+  try {
+    const imageId = parseInt(req.params.id);
+    if (!imageId) return res.status(400).json({ code: 400, message: '无效的图片ID' });
+
+    const image = db.getImageById(imageId);
+    if (!image) return res.status(404).json({ code: 404, message: '图片不存在' });
+
+    const index = parseInt(req.query.index) || 0;
+    const imagePath = image.image_paths[index];
+    if (!imagePath) return res.status(404).json({ code: 404, message: '图片不存在' });
+
+    const fullPath = path.resolve(__dirname, '../uploads', imagePath.replace(/^\/uploads\//, ''));
+    if (!fullPath.startsWith(path.resolve(__dirname, '../uploads') + path.sep)) {
+      return res.status(403).json({ code: 403, message: '非法图片路径' });
+    }
+
+    res.set('Content-Type', 'image/png');
+    res.set('Cache-Control', 'public, max-age=86400');
+    res.sendFile(fullPath);
+  } catch (err) {
+    console.error('[公开图片错误]', err.message);
+    res.status(500).json({ code: 500, message: '获取图片失败' });
+  }
+});
+app.use('/share/image', publicImageRouter);
 
 // API 路由 - 支付回调公开，其他需要登录
 app.use('/api/auth', express.json({ limit: '1mb' }), rateLimit, authRoutes);

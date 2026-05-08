@@ -89,11 +89,8 @@ function copyText(text, successMessage = '已复制') {
 }
 
 function getCurrentDetailShareLink() {
-  if (currentDetailMode === 'history' && currentResultImageId) {
-    return `${window.location.origin}${window.location.pathname}#history-${currentResultImageId}`;
-  }
   if (currentResultImageId) {
-    return `${window.location.origin}${window.location.pathname}#result-${currentResultImageId}`;
+    return `${window.location.origin}${window.location.pathname}?share=${currentResultImageId}`;
   }
   return `${window.location.origin}${window.location.pathname}`;
 }
@@ -116,7 +113,9 @@ function applyDetailResult({ scene, text, width, height, images, imageId, points
   currentResultImageId = imageId || currentResultImageId;
   currentResultIndex = 0;
   currentDetailMode = mode;
-  userInfo.points = points;
+  if (userInfo && typeof points === 'number') {
+    userInfo.points = points;
+  }
 }
 
 function openModifyModal(mode) {
@@ -142,6 +141,13 @@ function captureInviteCode() {
     pendingInviteCode = ref;
     localStorage.setItem('inviteCode', ref);
   }
+}
+
+function getShareImageId() {
+  const params = new URLSearchParams(window.location.search);
+  const share = (params.get('share') || '').trim();
+  const id = Number(share);
+  return Number.isInteger(id) && id > 0 ? id : 0;
 }
 
 function parseDetailHash() {
@@ -241,6 +247,11 @@ async function init() {
 }
 
 async function handleDetailHash() {
+  const shareId = getShareImageId();
+  if (shareId) {
+    await loadPublicDetailById(shareId);
+    return;
+  }
   const detail = parseDetailHash();
   if (!detail || !authToken) return;
   if (detail.mode === 'history') {
@@ -275,6 +286,10 @@ async function loadUserInfo() {
     userInfo = res.data;
     authExpiredNotified = false;
     updateMineDisplay();
+    const shareId = getShareImageId();
+    if (shareId) {
+      loadPublicDetailById(shareId);
+    }
   } else if (res.code !== 401) {
     userInfo = null;
     updateMineDisplay();
@@ -868,13 +883,63 @@ function showPage(page) {
   if (target) target.classList.add('page-active');
 }
 
+function setDetailActionsVisible(canEdit) {
+  setDisplay('modifyBtn', canEdit ? '' : 'none');
+  setDisplay('historyDetailModifyBtn', canEdit ? '' : 'none');
+}
+
 async function loadHistoryDetailById(imageId) {
   const res = await api(`/generate/history/${imageId}`);
   if (res.code !== 0 || !res.data) {
     showToast(res.message || '历史详情加载失败');
     return;
   }
+  $('historyDetailPageTitle').textContent = '作品详情';
+  setDetailActionsVisible(true);
   loadHistoryDetail(res.data);
+}
+
+async function loadPublicDetailById(imageId) {
+  const res = await api(`/generate/public/${imageId}`);
+  if (res.code !== 0 || !res.data) {
+    showToast(res.message || '分享详情加载失败');
+    return;
+  }
+
+  const item = res.data;
+  const fullUrl = item.imagePaths?.[0];
+  const sceneName = MATERIALS.find(m => m.key === item.scene)?.name || item.scene;
+  const width = item.width || 0;
+  const height = item.height || 0;
+  const unit = item.scene && MATERIALS.find(m => m.key === item.scene)?.unit || 'cm';
+  const sizeStr = width && height ? `${width}×${height}${unit}` : '-';
+  const dateStr = item.createdAt ? new Date(item.createdAt).toLocaleString('zh-CN') : '-';
+  const canEdit = Boolean(userInfo && item.ownerUserId === userInfo.id);
+
+  $('historyDetailPageTitle').textContent = '作品详情';
+  $('historyDetailImg').src = fullUrl || '';
+  $('historyDetailScene').textContent = sceneName;
+  $('historyDetailSize').textContent = sizeStr;
+  $('historyDetailDate').textContent = dateStr;
+
+  applyDetailResult({
+    scene: item.scene,
+    text: item.prompt,
+    width,
+    height,
+    images: [{ url: fullUrl, localPath: '' }],
+    imageId: item.id,
+    points: userInfo?.points ?? 0,
+    mode: 'history'
+  });
+
+  setDetailActionsVisible(canEdit);
+  updateTweakCost();
+  renderResultDetailMeta();
+  showPage('historyDetail');
+  waitForImageLoad(fullUrl).catch(() => {
+    showToast('作品详情已打开，但图片加载失败，请稍后重试');
+  });
 }
 
 function setLoginModalMode(mode) {
