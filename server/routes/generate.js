@@ -57,8 +57,6 @@ async function uploadToImageHost(filePath) {
   throw new Error(json.error?.message || '图床上传失败');
 }
 
-fs.mkdir(generatedDir, { recursive: true }).catch(() => {});
-
 // 可用的场景类型（从统一物料数据源生成）
 const VALID_SCENES = openai.MATERIALS.map(m => m.key);
 
@@ -236,6 +234,7 @@ router.post('/image', async (req, res) => {
     console.log(`[生成请求:${requestId}] grsai 成功返回 images=${generatedImages.length}`);
     
     // 保存图片到文件
+    await fs.mkdir(generatedDir, { recursive: true });
     const imagePaths = [];
     for (let i = 0; i < generatedImages.length; i++) {
       const filename = `${scene}_${parsedWidth}x${parsedHeight}${unitLabel}_${uuidv4().slice(0,8)}.png`;

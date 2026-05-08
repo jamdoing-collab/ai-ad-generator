@@ -816,7 +816,12 @@ async function regenerateCurrentDetail(mode) {
       throw new Error(msg);
     }
   } catch (err) {
-    showToast(err.message || '调整失败，请重试');
+    if (err.message && err.message.includes('正在生成中')) {
+      showToast(err.message);
+      closeModifyModal();
+    } else {
+      showToast(err.message || '调整失败，请重试');
+    }
   } finally {
     isGenerating = false;
     $('modifySubmitBtn').disabled = false;
