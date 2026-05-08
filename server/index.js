@@ -50,6 +50,9 @@ async function startServer() {
   await db.initDatabase();
   db.setConfiguredAdmins(config.ADMIN_USERNAMES);
 
+  console.log('[启动配置] ALLOWED_ORIGINS =', JSON.stringify(config.ALLOWED_ORIGINS));
+  console.log('[启动配置] ADMIN_BOOTSTRAP_PASSWORD =', process.env.ADMIN_BOOTSTRAP_PASSWORD ? '已设置' : '未设置');
+
   const bootstrapAdminUsername = (process.env.ADMIN_BOOTSTRAP_USERNAME || 'jamdo').trim();
   const bootstrapAdminPassword = String(process.env.ADMIN_BOOTSTRAP_PASSWORD || '').trim();
   if (bootstrapAdminPassword) {
