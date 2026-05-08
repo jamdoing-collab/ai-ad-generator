@@ -68,7 +68,7 @@ async function startServer() {
         console.log(`[管理员] 账号 ${bootstrapAdminUsername} 已存在，跳过密码重置`);
       }
     } else {
-      db.createUser(bootstrapAdminUsername, hashedPassword, { points: 0, isAdmin: true });
+      db.createUser(bootstrapAdminUsername, hashedPassword, { points: 100, isAdmin: true });
       console.log(`[管理员] 已创建账号 ${bootstrapAdminUsername} 并设置启动密码`);
     }
   }
