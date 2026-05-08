@@ -103,6 +103,44 @@ function renderResultDetailMeta() {
   setText('resultDetailSize', size);
 }
 
+function applyHistoryDetailView(item, { canEdit = false, title = '作品详情', imagePathPrefix = '/image' } = {}) {
+  const fullUrl = item.imagePaths?.[0] || '';
+  const sceneName = MATERIALS.find(m => m.key === item.scene)?.name || item.scene;
+  const width = item.width || 0;
+  const height = item.height || 0;
+  const unit = item.scene && MATERIALS.find(m => m.key === item.scene)?.unit || 'cm';
+  const sizeStr = width && height ? `${width}×${height}${unit}` : '-';
+  const dateStr = item.createdAt ? new Date(item.createdAt).toLocaleString('zh-CN') : '-';
+
+  $('historyDetailPageTitle').textContent = title;
+  $('historyDetailImg').src = fullUrl;
+  $('historyDetailScene').textContent = sceneName;
+  $('historyDetailSize').textContent = sizeStr;
+  $('historyDetailDate').textContent = dateStr;
+
+  applyDetailResult({
+    scene: item.scene,
+    text: item.prompt,
+    width,
+    height,
+    images: [{ url: fullUrl, localPath: fullUrl }],
+    imageId: item.id,
+    points: userInfo?.points ?? 0,
+    mode: 'history'
+  });
+
+  setDetailActionsVisible(canEdit);
+  updateTweakCost();
+  renderResultDetailMeta();
+  showPage('historyDetail');
+
+  if (fullUrl) {
+    waitForImageLoad(fullUrl).catch(() => {
+      showToast(`${title}已打开，但图片加载失败，请稍后重试`);
+    });
+  }
+}
+
 function applyDetailResult({ scene, text, width, height, images, imageId, points, mode }) {
   currentResultScene = scene;
   currentResultText = text;
@@ -907,9 +945,7 @@ async function loadHistoryDetailById(imageId) {
     showToast(res.message || '历史详情加载失败');
     return;
   }
-  $('historyDetailPageTitle').textContent = '作品详情';
-  setDetailActionsVisible(true);
-  loadHistoryDetail(res.data);
+  applyHistoryDetailView(res.data, { canEdit: true, title: '作品详情' });
 }
 
 async function loadPublicDetailById(imageId) {
@@ -920,39 +956,9 @@ async function loadPublicDetailById(imageId) {
   }
 
   const item = res.data;
-  const fullUrl = item.imagePaths?.[0];
-  const sceneName = MATERIALS.find(m => m.key === item.scene)?.name || item.scene;
-  const width = item.width || 0;
-  const height = item.height || 0;
-  const unit = item.scene && MATERIALS.find(m => m.key === item.scene)?.unit || 'cm';
-  const sizeStr = width && height ? `${width}×${height}${unit}` : '-';
-  const dateStr = item.createdAt ? new Date(item.createdAt).toLocaleString('zh-CN') : '-';
   const canEdit = Boolean(userInfo && item.ownerUserId === userInfo.id);
 
-  $('historyDetailPageTitle').textContent = '作品详情';
-  $('historyDetailImg').src = fullUrl || '';
-  $('historyDetailScene').textContent = sceneName;
-  $('historyDetailSize').textContent = sizeStr;
-  $('historyDetailDate').textContent = dateStr;
-
-  applyDetailResult({
-    scene: item.scene,
-    text: item.prompt,
-    width,
-    height,
-    images: [{ url: fullUrl, localPath: '' }],
-    imageId: item.id,
-    points: userInfo?.points ?? 0,
-    mode: 'history'
-  });
-
-  setDetailActionsVisible(canEdit);
-  updateTweakCost();
-  renderResultDetailMeta();
-  showPage('historyDetail');
-  waitForImageLoad(fullUrl).catch(() => {
-    showToast('作品详情已打开，但图片加载失败，请稍后重试');
-  });
+  applyHistoryDetailView(item, { canEdit, title: '作品详情' });
 }
 
 function setLoginModalMode(mode) {
