@@ -735,12 +735,15 @@ async function startGenerate() {
         points: res.data.points,
         mode: 'result'
       });
-      await waitForImageLoad(currentResultImages[0]);
       $('loadingWrap').style.display = 'none';
       $('resultWrap').style.display = 'flex';
       showResultImage(0);
       window.location.hash = `result-${currentResultImageId}`;
       updateMineDisplay();
+
+      waitForImageLoad(currentResultImages[0]).catch(() => {
+        showToast('生成成功，但结果图片加载失败，请稍后重试查看历史记录');
+      });
     } else {
       const msg = res.code === 503
         ? '服务未配置密钥，请联系管理员'
@@ -756,7 +759,7 @@ async function startGenerate() {
     } else {
       $('loadingWrap').style.display = 'none';
       $('errorState').style.display = 'flex';
-      $('errorMsg').textContent = err.message || '生成结果返回异常，请稍后重试';
+      $('errorMsg').textContent = err.message || '生成请求失败，请稍后重试';
     }
   } finally {
     isGenerating = false;
