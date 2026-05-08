@@ -753,9 +753,14 @@ async function startGenerate() {
       throw new Error(msg);
     }
   } catch (err) {
-    if (err.message && (err.message.includes('未配置密钥') || err.message.includes('正在生成中'))) {
+    if (err.message && err.message.includes('未配置密钥')) {
       showToast(err.message);
       showPage('generate');
+    } else if (err.message && err.message.includes('正在生成中')) {
+      showToast(err.message);
+      $('loadingWrap').style.display = 'flex';
+      $('resultWrap').style.display = 'none';
+      $('errorState').style.display = 'none';
     } else {
       $('loadingWrap').style.display = 'none';
       $('errorState').style.display = 'flex';
