@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const path = require('path');
 const fs = require('fs');
+const sharp = require('sharp');
 const config = require('./config');
 
 const app = express();
@@ -31,7 +32,6 @@ app.use(cors({
   },
   credentials: true
 }));
-app.use('/uploads', express.static(uploadDir));
 app.use(express.static(path.join(__dirname, '../public')));
 
 // 引入数据库
@@ -40,6 +40,9 @@ const db = require('./database');
 async function startServer() {
   if (!config.JWT_SECRET) {
     throw new Error('缺少 JWT_SECRET 环境变量');
+  }
+  if (config.NODE_ENV === 'production' && config.ALLOWED_ORIGINS.length === 0) {
+    throw new Error('生产环境必须配置 ALLOWED_ORIGINS，避免开放任意跨域来源');
   }
 
   // 初始化数据库
@@ -58,12 +61,86 @@ async function startServer() {
   const rateLimit = require('./middleware/rateLimit');
   const generateRateLimit = require('./middleware/generateRateLimit');
 
-  // API 路由 - 支付回调公开，其他需要登录
-  app.use('/api/auth', express.json({ limit: '1mb' }), rateLimit, authRoutes);
-  app.use('/api/config', configRoutes);
-  app.use('/api/user', express.json({ limit: '1mb' }), auth, userRoutes);
-  app.use('/api/generate', express.json({ limit: '10mb' }), auth, generateRateLimit, generateRoutes);
-  app.use('/api/admin', express.json({ limit: '5mb' }), adminRoutes);
+// 缩略图（需登录，仅可访问自己图片）
+const thumbRouter = express.Router();
+thumbRouter.get('/:id', auth, async (req, res) => {
+  try {
+    const imageId = parseInt(req.params.id);
+    if (!imageId) return res.status(400).json({ code: 400, message: '无效的图片ID' });
+
+    const image = db.getImageById(imageId);
+    if (!image) return res.status(404).json({ code: 404, message: '图片不存在' });
+    if (image.user_id !== req.userId) return res.status(403).json({ code: 403, message: '无权访问' });
+
+    const index = parseInt(req.query.index) || 0;
+    const imagePath = image.image_paths[index];
+    if (!imagePath) return res.status(404).json({ code: 404, message: '图片不存在' });
+
+    const fullPath = path.resolve(__dirname, '../uploads', imagePath.replace(/^\/uploads\//, ''));
+    if (!fullPath.startsWith(path.resolve(__dirname, '../uploads') + path.sep)) {
+      return res.status(403).json({ code: 403, message: '非法图片路径' });
+    }
+
+    const thumbBuffer = await sharp(fullPath)
+      .resize(600, 600, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 85 })
+      .toBuffer();
+
+    res.set('Content-Type', 'image/jpeg');
+    res.set('Cache-Control', 'private, max-age=604800');
+    res.send(thumbBuffer);
+  } catch (err) {
+    console.error('[缩略图错误]', err.message);
+    res.status(500).json({ code: 500, message: '获取缩略图失败' });
+  }
+});
+app.use('/thumb', thumbRouter);
+
+// 完整图片（需登录，仅可访问自己图片）
+const imageRouter = express.Router();
+imageRouter.get('/:id', auth, async (req, res) => {
+  try {
+    const imageId = parseInt(req.params.id);
+    if (!imageId) return res.status(400).json({ code: 400, message: '无效的图片ID' });
+
+    const image = db.getImageById(imageId);
+    if (!image) return res.status(404).json({ code: 404, message: '图片不存在' });
+    if (image.user_id !== req.userId) return res.status(403).json({ code: 403, message: '无权访问' });
+
+    const index = parseInt(req.query.index) || 0;
+    const imagePath = image.image_paths[index];
+    if (!imagePath) return res.status(404).json({ code: 404, message: '图片不存在' });
+
+    const fullPath = path.resolve(__dirname, '../uploads', imagePath.replace(/^\/uploads\//, ''));
+    if (!fullPath.startsWith(path.resolve(__dirname, '../uploads') + path.sep)) {
+      return res.status(403).json({ code: 403, message: '非法图片路径' });
+    }
+
+    res.set('Content-Type', 'image/png');
+    res.set('Cache-Control', 'private, max-age=86400');
+    res.sendFile(fullPath);
+  } catch (err) {
+    console.error('[图片错误]', err.message);
+    res.status(500).json({ code: 500, message: '获取图片失败' });
+  }
+});
+app.use('/image', imageRouter);
+
+// API 路由 - 支付回调公开，其他需要登录
+app.use('/api/auth', express.json({ limit: '1mb' }), rateLimit, authRoutes);
+app.use('/api/config', configRoutes);
+app.use('/api/user', express.json({ limit: '1mb' }), auth, userRoutes);
+app.use('/api/generate', express.json({ limit: '10mb' }), auth, generateRateLimit, generateRoutes);
+app.use('/api/admin', express.json({ limit: '5mb' }), adminRoutes);
+  app.get('/api/payment/packages', (req, res) => {
+    const packages = Object.entries(config.RECHARGE_PACKAGES).map(([id, pkg]) => ({
+      id,
+      price: (pkg.price / 100).toFixed(2),
+      priceCent: pkg.price,
+      points: pkg.points
+    }));
+    res.json({ code: 0, data: packages });
+  });
   app.use('/api/payment', express.json({ limit: '1mb' }), auth, paymentRoutes);
   
   // 首页
@@ -76,7 +153,7 @@ async function startServer() {
   });
   
   // 错误处理
-  app.use((err, req, res, next) => {
+  app.use((err, req, res, _next) => {
     console.error(err.stack);
     res.status(500).json({ code: 500, message: '服务器错误' });
   });

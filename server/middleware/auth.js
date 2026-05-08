@@ -8,14 +8,16 @@ function verifyWithFallback(token) {
   for (const secret of secrets) {
     try {
       return jwt.verify(token, secret);
-    } catch (err) {}
+    } catch {
+    }
   }
 
   throw new Error('invalid token');
 }
 
 const auth = (req, res, next) => {
-  const token = req.headers.authorization?.replace(/^Bearer\s+/i, '');
+  const token = req.headers.authorization?.replace(/^Bearer\s+/i, '')
+    || (req.query && req.query.token) || null;
   
   if (!token) {
     return res.status(401).json({ code: 401, message: '请先登录' });
@@ -31,7 +33,7 @@ const auth = (req, res, next) => {
     req.userId = decoded.userId;
     req.token = token;
     next();
-  } catch (err) {
+  } catch {
     return res.status(401).json({ code: 401, message: '登录已过期，请重新登录' });
   }
 };

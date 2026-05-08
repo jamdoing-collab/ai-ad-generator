@@ -1,99 +1,99 @@
 const initSqlJs = require('sql.js');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
+const { createSettingsCrypto } = require('./settingsCrypto');
+const { createSettingsStore } = require('./settingsStore');
 
 const dbPath = path.join(__dirname, '../data/ad-generator.db');
 
 let db = null;
 
-const crypto = require('crypto');
-
 const config = require('./config');
-const SETTINGS_ENCRYPT_KEY = config.JWT_SECRET;
-if (!SETTINGS_ENCRYPT_KEY) {
+let settingsStore = null;
+
+let settingsCrypto;
+try {
+  settingsCrypto = createSettingsCrypto(config.JWT_SECRET);
+} catch {
   console.error('[数据库] 错误：缺少 JWT_SECRET 环境变量，无法加密敏感设置');
   process.exit(1);
 }
-const SETTINGS_ENCRYPT_PREFIX = 'enc:';
+const { encryptValue, decryptValue, SETTINGS_ENCRYPT_PREFIX } = settingsCrypto;
 
-function encryptValue(plaintext) {
-  if (!plaintext) return plaintext;
-  const key = crypto.createHash('sha256').update(SETTINGS_ENCRYPT_KEY).digest();
-  const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
-  let encrypted = cipher.update(plaintext, 'utf8', 'hex');
-  encrypted += cipher.final('hex');
-  const tag = cipher.getAuthTag().toString('hex');
-  return SETTINGS_ENCRYPT_PREFIX + iv.toString('hex') + ':' + tag + ':' + encrypted;
-}
+const ALLOWED_TABLES = ['users', 'sessions', 'images', 'point_changes', 'orders', 'settings', 'invite_rewards'];
 
-function decryptValue(ciphertext) {
-  if (!ciphertext || !ciphertext.startsWith(SETTINGS_ENCRYPT_PREFIX)) return ciphertext;
-  try {
-    // 兼容旧格式 aes-256-cbc（iv:密文）和新格式 aes-256-gcm（iv:tag:密文）
-    const raw = ciphertext.slice(SETTINGS_ENCRYPT_PREFIX.length);
-    const parts = raw.split(':');
-    const key = crypto.createHash('sha256').update(SETTINGS_ENCRYPT_KEY).digest();
-
-    if (parts.length === 3) {
-      // aes-256-gcm
-      const iv = Buffer.from(parts[0], 'hex');
-      const tag = Buffer.from(parts[1], 'hex');
-      const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
-      decipher.setAuthTag(tag);
-      let decrypted = decipher.update(parts[2], 'hex', 'utf8');
-      decrypted += decipher.final('utf8');
-      return decrypted;
-    }
-
-    if (parts.length === 2) {
-      // 旧格式 aes-256-cbc，解密后自动升级为 gcm
-      const iv = Buffer.from(parts[0], 'hex');
-      const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
-      let decrypted = decipher.update(parts[1], 'hex', 'utf8');
-      decrypted += decipher.final('utf8');
-      return decrypted;
-    }
-
-    return ciphertext;
-  } catch (err) {
-    console.error('[数据库] 解密设置失败:', err.message);
-    return ciphertext;
-  }
-}
-
-const SENSITIVE_SETTINGS = ['openai_api_key', 'openai_base_url', 'image_host_token'];
-
-const ALLOWED_TABLES = ['users', 'sessions', 'images', 'point_changes', 'orders', 'settings'];
-
-function hasColumn(tableName, columnName) {
+function getTableColumns(tableName) {
   if (!ALLOWED_TABLES.includes(tableName)) {
     throw new Error(`Invalid table name: ${tableName}`);
   }
   const result = db.exec(`PRAGMA table_info("${tableName}")`);
   const columns = result[0]?.values || [];
-  return columns.some(column => column[1] === columnName);
+  return new Set(columns.map(column => column[1]));
 }
 
-function ensureUserAdminColumn() {
-  if (!hasColumn('users', 'points')) {
+function generateInviteCode() {
+  return crypto.randomBytes(6).toString('base64url');
+}
+
+function inviteCodeExists(inviteCode) {
+  const stmt = db.prepare('SELECT id FROM users WHERE invite_code = ? LIMIT 1');
+  stmt.bind([inviteCode]);
+  const exists = stmt.step();
+  stmt.free();
+  return exists;
+}
+
+function createUniqueInviteCode() {
+  let inviteCode = generateInviteCode();
+  while (inviteCodeExists(inviteCode)) {
+    inviteCode = generateInviteCode();
+  }
+  return inviteCode;
+}
+
+function ensureUserColumns() {
+  const columns = getTableColumns('users');
+
+  if (!columns.has('points')) {
     db.run('ALTER TABLE users ADD COLUMN points INTEGER DEFAULT 0');
     db.run('UPDATE users SET points = 0 WHERE points IS NULL');
   }
 
-  if (!hasColumn('users', 'created_at')) {
+  if (!columns.has('created_at')) {
     db.run('ALTER TABLE users ADD COLUMN created_at TEXT');
     db.run('UPDATE users SET created_at = datetime("now") WHERE created_at IS NULL');
   }
 
-  if (!hasColumn('users', 'updated_at')) {
+  if (!columns.has('updated_at')) {
     db.run('ALTER TABLE users ADD COLUMN updated_at TEXT');
     db.run('UPDATE users SET updated_at = datetime("now") WHERE updated_at IS NULL');
   }
 
-  if (!hasColumn('users', 'is_admin')) {
+  if (!columns.has('is_admin')) {
     db.run('ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0');
   }
+
+  if (!columns.has('invite_code')) {
+    db.run('ALTER TABLE users ADD COLUMN invite_code TEXT');
+  }
+
+  if (!columns.has('referred_by_user_id')) {
+    db.run('ALTER TABLE users ADD COLUMN referred_by_user_id INTEGER');
+  }
+
+  const stmt = db.prepare('SELECT id FROM users WHERE invite_code IS NULL OR invite_code = ""');
+  const missingIds = [];
+  while (stmt.step()) {
+    missingIds.push(stmt.getAsObject().id);
+  }
+  stmt.free();
+
+  for (const userId of missingIds) {
+    db.run('UPDATE users SET invite_code = ? WHERE id = ?', [createUniqueInviteCode(), userId]);
+  }
+
+  db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_invite_code ON users(invite_code)');
 }
 
 async function initDatabase() {
@@ -115,11 +115,15 @@ CREATE TABLE IF NOT EXISTS users (
   password TEXT NOT NULL,
   points INTEGER DEFAULT 0,
   is_admin INTEGER DEFAULT 0,
+  invite_code TEXT UNIQUE,
+  referred_by_user_id INTEGER,
   created_at TEXT DEFAULT (datetime('now')),
-  updated_at TEXT DEFAULT (datetime('now'))
+  updated_at TEXT DEFAULT (datetime('now')),
+  FOREIGN KEY (referred_by_user_id) REFERENCES users(id)
 )
   `);
-  ensureUserAdminColumn();
+  ensureUserColumns();
+  migrateSettingsIfNeeded();
   
   db.run(`
     CREATE TABLE IF NOT EXISTS sessions (
@@ -182,9 +186,25 @@ CREATE TABLE IF NOT EXISTS users (
     )
   `);
 
+  db.run(`
+    CREATE TABLE IF NOT EXISTS invite_rewards (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      inviter_user_id INTEGER NOT NULL,
+      invited_user_id INTEGER NOT NULL,
+      type TEXT NOT NULL,
+      amount INTEGER NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(invited_user_id, type),
+      FOREIGN KEY (inviter_user_id) REFERENCES users(id),
+      FOREIGN KEY (invited_user_id) REFERENCES users(id)
+    )
+  `);
+
   db.run('CREATE INDEX IF NOT EXISTS idx_images_user_id ON images(user_id)');
   db.run('CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id)');
   db.run('CREATE INDEX IF NOT EXISTS idx_point_changes_user_id ON point_changes(user_id)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_users_referred_by_user_id ON users(referred_by_user_id)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_invite_rewards_inviter_user_id ON invite_rewards(inviter_user_id)');
 
   // 迁移：旧表列名为 image_urls，新代码期望 image_paths
   const cols = db.exec("PRAGMA table_info(images)");
@@ -260,6 +280,34 @@ function saveDatabaseSync() {
   fs.writeFileSync(dbPath, buffer);
 }
 
+settingsStore = createSettingsStore({
+  getDb: () => db,
+  encryptValue,
+  decryptValue,
+  saveDatabase
+});
+
+function migrateSettingsIfNeeded() {
+  const stmt = db.prepare('SELECT key, value FROM settings WHERE value LIKE ?');
+  stmt.bind([`${SETTINGS_ENCRYPT_PREFIX}%`]);
+
+  const rows = [];
+  while (stmt.step()) {
+    rows.push(stmt.getAsObject());
+  }
+  stmt.free();
+
+  for (const row of rows) {
+    const raw = row.value.slice(SETTINGS_ENCRYPT_PREFIX.length);
+    if (raw.split(':').length === 2) {
+      const decrypted = decryptValue(row.value);
+      if (decrypted) {
+        settingsStore.setSetting(row.key, decrypted);
+      }
+    }
+  }
+}
+
 function getUserByUsername(username) {
   const stmt = db.prepare('SELECT * FROM users WHERE username = ?');
   stmt.bind([username]);
@@ -273,8 +321,21 @@ function getUserByUsername(username) {
 }
 
 function getUserById(id) {
-  const stmt = db.prepare('SELECT id, username, points, is_admin, created_at FROM users WHERE id = ?');
+  const stmt = db.prepare('SELECT id, username, points, is_admin, invite_code, referred_by_user_id, created_at FROM users WHERE id = ?');
   stmt.bind([id]);
+  if (stmt.step()) {
+    const row = stmt.getAsObject();
+    stmt.free();
+    return row;
+  }
+  stmt.free();
+  return null;
+}
+
+function getUserByInviteCode(inviteCode) {
+  if (!inviteCode) return null;
+  const stmt = db.prepare('SELECT id, username, points, is_admin, invite_code, referred_by_user_id, created_at FROM users WHERE invite_code = ?');
+  stmt.bind([inviteCode]);
   if (stmt.step()) {
     const row = stmt.getAsObject();
     stmt.free();
@@ -287,14 +348,30 @@ function getUserById(id) {
 function createUser(username, password, options = {}) {
   const points = Number.isFinite(Number(options.points)) ? Number(options.points) : 0;
   const isAdmin = options.isAdmin ? 1 : 0;
-  db.run('INSERT INTO users (username, password, points, is_admin) VALUES (?, ?, ?, ?)', [username, password, points, isAdmin]);
+  const inviteCode = createUniqueInviteCode();
+  const referredByUserId = Number.isInteger(Number(options.referredByUserId)) ? Number(options.referredByUserId) : null;
+  db.run(
+    'INSERT INTO users (username, password, points, is_admin, invite_code, referred_by_user_id) VALUES (?, ?, ?, ?, ?, ?)',
+    [username, password, points, isAdmin, inviteCode, referredByUserId]
+  );
   const stmt = db.prepare('SELECT last_insert_rowid() as id');
   stmt.step();
   const row = stmt.getAsObject();
   stmt.free();
   const id = row.id || 0;
   saveDatabase();
-  return { id, username, points, is_admin: isAdmin };
+  return { id, username, points, is_admin: isAdmin, invite_code: inviteCode, referred_by_user_id: referredByUserId };
+}
+
+function getUserImageCount(userId) {
+  const stmt = db.prepare('SELECT COUNT(*) AS count FROM images WHERE user_id = ?');
+  stmt.bind([userId]);
+  let count = 0;
+  if (stmt.step()) {
+    count = stmt.getAsObject().count || 0;
+  }
+  stmt.free();
+  return count;
 }
 
 function updateUserPoints(userId, points) {
@@ -443,46 +520,13 @@ function deleteUserById(userId) {
   db.run('DELETE FROM point_changes WHERE user_id = ?', [userId]);
   db.run('DELETE FROM images WHERE user_id = ?', [userId]);
   db.run('DELETE FROM orders WHERE user_id = ?', [userId]);
+  db.run('DELETE FROM invite_rewards WHERE inviter_user_id = ? OR invited_user_id = ?', [userId, userId]);
+  db.run('UPDATE users SET referred_by_user_id = NULL WHERE referred_by_user_id = ?', [userId]);
   db.run('DELETE FROM users WHERE id = ?', [userId]);
   saveDatabase();
 }
 
-function getSetting(key) {
-  const stmt = db.prepare('SELECT value FROM settings WHERE key = ?');
-  stmt.bind([key]);
-  if (stmt.step()) {
-    const row = stmt.getAsObject();
-    stmt.free();
-    if (SENSITIVE_SETTINGS.includes(key)) {
-      const decrypted = decryptValue(row.value);
-      // 旧 CBC 格式自动升级为 GCM
-      if (row.value && row.value.startsWith(SETTINGS_ENCRYPT_PREFIX)) {
-        const raw = row.value.slice(SETTINGS_ENCRYPT_PREFIX.length);
-        if (raw.split(':').length === 2) {
-          setSetting(key, decrypted);
-        }
-      }
-      return decrypted;
-    }
-    return row.value;
-  }
-  stmt.free();
-  return '';
-}
-
-function setSetting(key, value) {
-  const storedValue = SENSITIVE_SETTINGS.includes(key) ? encryptValue(value) : value;
-  db.run(
-    'INSERT INTO settings (key, value, updated_at) VALUES (?, ?, datetime("now")) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime("now")',
-    [key, storedValue]
-  );
-  saveDatabase();
-}
-
-function deleteSetting(key) {
-  db.run('DELETE FROM settings WHERE key = ?', [key]);
-  saveDatabase();
-}
+const { getSetting, setSetting, deleteSetting } = settingsStore;
 
 function logPointChange(userId, type, amount, description) {
   const user = getUserById(userId);
@@ -490,6 +534,84 @@ function logPointChange(userId, type, amount, description) {
   db.run('INSERT INTO point_changes (user_id, type, amount, balance, description) VALUES (?, ?, ?, ?, ?)',
     [userId, type, amount, balance, description]);
   saveDatabase();
+}
+
+function hasInviteReward(invitedUserId, type) {
+  const stmt = db.prepare('SELECT id FROM invite_rewards WHERE invited_user_id = ? AND type = ? LIMIT 1');
+  stmt.bind([invitedUserId, type]);
+  const exists = stmt.step();
+  stmt.free();
+  return exists;
+}
+
+function awardInviteReward(invitedUserId, type, amount, description) {
+  const parsedAmount = Number(amount);
+  if (!Number.isInteger(parsedAmount) || parsedAmount <= 0) {
+    return { ok: false, message: '无效奖励点数' };
+  }
+
+  const invitedUser = getUserById(invitedUserId);
+  if (!invitedUser || !invitedUser.referred_by_user_id) {
+    return { ok: false, message: '没有邀请关系' };
+  }
+
+  const inviterUserId = Number(invitedUser.referred_by_user_id);
+  if (inviterUserId === Number(invitedUserId)) {
+    return { ok: false, message: '不能奖励自邀请' };
+  }
+
+  if (hasInviteReward(invitedUserId, type)) {
+    return { ok: false, alreadyAwarded: true };
+  }
+
+  try {
+    db.run(
+      'INSERT INTO invite_rewards (inviter_user_id, invited_user_id, type, amount) VALUES (?, ?, ?, ?)',
+      [inviterUserId, invitedUserId, type, parsedAmount]
+    );
+    if (db.getRowsModified() === 0) {
+      return { ok: false, alreadyAwarded: true };
+    }
+  } catch (err) {
+    if (String(err.message || '').includes('UNIQUE')) {
+      return { ok: false, alreadyAwarded: true };
+    }
+    console.error('[邀请奖励] 记录奖励失败:', err.message);
+    return { ok: false, message: '记录奖励失败' };
+  }
+
+  const newPoints = updateUserPoints(inviterUserId, parsedAmount);
+  if (newPoints === false) {
+    db.run('DELETE FROM invite_rewards WHERE invited_user_id = ? AND type = ?', [invitedUserId, type]);
+    return { ok: false, message: '邀请者不存在' };
+  }
+
+  logPointChange(inviterUserId, 'invite_reward', parsedAmount, description);
+  saveDatabase();
+  return { ok: true, inviterUserId, newPoints };
+}
+
+function getInviteSummary(userId) {
+  const invitedStmt = db.prepare('SELECT COUNT(*) AS count FROM users WHERE referred_by_user_id = ?');
+  invitedStmt.bind([userId]);
+  const invitedCount = invitedStmt.step() ? invitedStmt.getAsObject().count || 0 : 0;
+  invitedStmt.free();
+
+  const effectiveStmt = db.prepare('SELECT COUNT(DISTINCT invited_user_id) AS count FROM invite_rewards WHERE inviter_user_id = ?');
+  effectiveStmt.bind([userId]);
+  const effectiveCount = effectiveStmt.step() ? effectiveStmt.getAsObject().count || 0 : 0;
+  effectiveStmt.free();
+
+  const rewardStmt = db.prepare('SELECT COALESCE(SUM(amount), 0) AS sum FROM invite_rewards WHERE inviter_user_id = ?');
+  rewardStmt.bind([userId]);
+  const rewardPoints = rewardStmt.step() ? rewardStmt.getAsObject().sum || 0 : 0;
+  rewardStmt.free();
+
+  return {
+    invitedCount,
+    effectiveCount,
+    rewardPoints
+  };
 }
 
 function getPointHistory(userId, limit = 20) {
@@ -563,7 +685,7 @@ function completeOrderAtomic(orderId) {
   }
 
   // 使用条件更新实现原子操作，防止并发重复入账
-  const result = db.run(
+  db.run(
     'UPDATE orders SET status = ?, pay_info = ?, updated_at = datetime("now") WHERE id = ? AND status = ?',
     ['completed', JSON.stringify({ channel: 'mock', paidAt: new Date().toISOString() }), orderId, 'pending']
   );
@@ -621,6 +743,7 @@ module.exports = {
   initDatabase,
   getUserByUsername,
   getUserById,
+  getUserByInviteCode,
   getSessionByToken,
   createUser,
   createSession,
@@ -638,6 +761,9 @@ module.exports = {
   deleteSetting,
   updateUserPoints,
   logPointChange,
+  awardInviteReward,
+  getInviteSummary,
+  getUserImageCount,
   getPointHistory,
   saveImage,
   getUserImages,

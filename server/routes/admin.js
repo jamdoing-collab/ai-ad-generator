@@ -4,6 +4,7 @@ const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const db = require('../database');
 const admin = require('../middleware/admin');
+const { validatePassword } = require('../validators/password');
 
 const router = express.Router();
 
@@ -50,9 +51,9 @@ router.put('/settings', (req, res) => {
       const openaiApiKey = String(req.body.openaiApiKey || '').trim();
       if (!openaiApiKey) {
         db.deleteSetting('openai_api_key');
-        return res.json({ code: 0, message: '已清除 GPT Image Key' });
+      } else {
+        db.setSetting('openai_api_key', openaiApiKey);
       }
-      db.setSetting('openai_api_key', openaiApiKey);
     }
 
     if (Object.prototype.hasOwnProperty.call(req.body, 'imageHostToken')) {
@@ -91,6 +92,11 @@ router.post('/users', async (req, res) => {
 
   if (!username || !password) {
     return res.status(400).json({ code: 400, message: '用户名和密码不能为空' });
+  }
+
+  const passwordError = validatePassword(password);
+  if (passwordError) {
+    return res.status(400).json({ code: 400, message: passwordError });
   }
 
   if (db.getUserByUsername(username)) {

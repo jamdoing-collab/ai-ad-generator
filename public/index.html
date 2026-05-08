@@ -34,7 +34,7 @@
     <section class="section">
       <h2 class="section-title">内容</h2>
       <div class="content-input-panel">
-        <textarea class="text-input text-input-merged" id="textInput" placeholder="请输入需要出现在画面中的文字，如店名、口号、联系方式等" maxlength="200"></textarea>
+        <textarea class="text-input text-input-merged" id="textInput" placeholder="请输入需要出现在画面中的文字，如店名、口号、联系方式等" maxlength="600"></textarea>
         <div class="content-panel-upload-row">
           <div class="upload-area upload-area-inline" id="uploadArea">
             <div class="upload-btn">
@@ -112,14 +112,25 @@
         <img id="resultImg" src="" alt="生成结果">
       </div>
       <div class="result-dots" id="resultDots"></div>
-      <div class="result-quality-hint">AI 生成图片经放大处理可达印刷标准</div>
-      <div class="result-feedback">
-        <input type="text" id="feedbackInput" placeholder="对结果不满意？说说哪里不对（可选）">
+      <div class="detail-meta">
+        <div class="detail-meta-row">
+          <span class="detail-meta-label">物料</span>
+          <span class="detail-meta-value" id="resultDetailScene">-</span>
+        </div>
+        <div class="detail-meta-row">
+          <span class="detail-meta-label">尺寸</span>
+          <span class="detail-meta-value" id="resultDetailSize">-</span>
+        </div>
+        <div class="detail-meta-row">
+          <span class="detail-meta-label">说明</span>
+          <span class="detail-meta-value result-quality-hint">AI 生成图片经放大处理可达印刷标准</span>
+        </div>
       </div>
-      <div class="result-actions">
-        <button class="btn-action btn-download" id="downloadBtn">下载保存</button>
-        <button class="btn-action btn-regen" id="regenBtn">重新生成</button>
+      <div class="detail-actions detail-actions-primary">
+        <button class="btn-action btn-download" id="downloadBtn">保存</button>
+        <button class="btn-action btn-regen" id="modifyBtn">修改</button>
       </div>
+      <button class="btn-action btn-share detail-share-btn" id="shareBtn">分享</button>
     </div>
   </div>
 </main>
@@ -158,6 +169,11 @@
         <span class="menu-text">生成历史</span>
         <span class="menu-arrow">›</span>
       </div>
+      <div class="menu-item" id="inviteBtn" style="display:none">
+        <span class="menu-icon">🎁</span>
+        <span class="menu-text">邀请赚点数</span>
+        <span class="menu-arrow">›</span>
+      </div>
       <div class="menu-item" id="helpBtn">
         <span class="menu-icon">❓</span>
         <span class="menu-text">使用帮助</span>
@@ -185,6 +201,104 @@
 </main>
 </div>
 
+<!-- 7. 历史详情页 -->
+<div class="page" id="pageHistoryDetail">
+<header class="sub-header">
+  <span class="back-btn" id="historyDetailBackBtn">←</span>
+  <h1>历史详情</h1>
+</header>
+<main class="main">
+    <div class="mobile-result-card">
+      <div class="result-wrap" id="historyDetailWrap">
+        <div class="result-img-area" id="historyDetailImgArea">
+          <img id="historyDetailImg" src="" alt="历史图片">
+        </div>
+        <div class="detail-meta">
+          <div class="detail-meta-row">
+            <span class="detail-meta-label">物料</span>
+            <span class="detail-meta-value" id="historyDetailScene">-</span>
+          </div>
+          <div class="detail-meta-row">
+            <span class="detail-meta-label">尺寸</span>
+            <span class="detail-meta-value" id="historyDetailSize">-</span>
+          </div>
+          <div class="detail-meta-row">
+            <span class="detail-meta-label">生成时间</span>
+            <span class="detail-meta-value" id="historyDetailDate">-</span>
+          </div>
+        </div>
+        <div class="detail-actions detail-actions-primary">
+          <button class="btn-action btn-download" id="historyDetailSaveBtn">保存</button>
+          <button class="btn-action btn-regen" id="historyDetailModifyBtn">修改</button>
+        </div>
+        <button class="btn-action btn-share detail-share-btn" id="historyDetailShareBtn">分享</button>
+      </div>
+    </div>
+</main>
+</div>
+
+<!-- 5. 邀请赚点数页 -->
+<div class="page" id="pageInvite">
+<header class="sub-header">
+  <span class="back-btn" id="inviteBackBtn">←</span>
+  <h1>邀请赚点数</h1>
+</header>
+<main class="main">
+  <div class="invite-page-content">
+    <div class="invite-hero card">
+      <div class="invite-hero-title">把好用的工具分享给朋友</div>
+      <div class="invite-hero-desc">好友通过你的链接注册并完成首次生成后，你将获得点数奖励。</div>
+    </div>
+
+    <div class="invite-stats card">
+      <div class="invite-stat">
+        <span class="invite-stat-num" id="inviteCount">0</span>
+        <span class="invite-stat-label">已邀请</span>
+      </div>
+      <div class="invite-stat">
+        <span class="invite-stat-num" id="inviteEffectiveCount">0</span>
+        <span class="invite-stat-label">有效邀请</span>
+      </div>
+      <div class="invite-stat">
+        <span class="invite-stat-num" id="inviteRewardPoints">0</span>
+        <span class="invite-stat-label">累计点数</span>
+      </div>
+    </div>
+
+    <div class="invite-link-card card">
+      <div class="invite-card-title">我的邀请链接</div>
+      <div class="invite-link-box" id="inviteLink">登录后生成邀请链接</div>
+      <button class="btn-primary invite-copy-btn" id="copyInviteBtn">复制邀请链接</button>
+    </div>
+
+    <div class="invite-rules card">
+      <div class="invite-card-title">如何获取点数</div>
+      <div class="invite-rule-item">
+        <span class="invite-rule-index">1</span>
+        <div>
+          <div class="invite-rule-title">新用户注册</div>
+          <div class="invite-rule-desc">新用户注册会获得基础点数；通过你的邀请链接注册，还会额外获得奖励点数。</div>
+        </div>
+      </div>
+      <div class="invite-rule-item">
+        <span class="invite-rule-index">2</span>
+        <div>
+          <div class="invite-rule-title">好友首次生成</div>
+          <div class="invite-rule-desc">好友完成第一次 AI 广告生成后，你会获得邀请奖励点数。</div>
+        </div>
+      </div>
+      <div class="invite-rule-item">
+        <span class="invite-rule-index">3</span>
+        <div>
+          <div class="invite-rule-title">充值获取更多</div>
+          <div class="invite-rule-desc">点数用完后可在个人中心充值；好友充值返利会在支付接入完善后开放。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+</div>
+
 <!-- 弹窗：登录 -->
 <div class="modal" id="loginModal" style="display: none;">
 <div class="modal-content">
@@ -195,6 +309,7 @@
   <div class="login-form-modal">
     <input type="text" id="modalLoginUsername" placeholder="用户名" class="login-input">
     <input type="password" id="modalLoginPassword" placeholder="密码" class="login-input">
+    <div class="invite-register-hint" id="inviteRegisterHint" style="display:none">已识别好友邀请，注册成功后可额外获得点数</div>
     <button class="btn-primary" id="modalLoginBtn" type="button">登录</button>
     <div class="login-switch">
       <span id="loginSwitchBtn">没有账号？去注册</span>
@@ -240,14 +355,32 @@
     <span class="modal-close" id="contactModalClose">×</span>
   </div>
   <div class="contact-content">
-    <p>添加客服微信，获取专业设计支持</p>
+    <p>添加客服微信</p>
     <div class="contact-wechat" id="contactWechat">jamw2014</div>
     <button class="btn-primary" id="copyWechatBtn">复制微信号</button>
   </div>
 </div>
 </div>
 
-<!-- 5. 使用帮助页 -->
+<!-- 弹窗：修改图片 -->
+<div class="modal" id="modifyModal" style="display: none;">
+<div class="modal-content">
+  <div class="modal-header">
+    <h3 id="modifyModalTitle">修改图片</h3>
+    <span class="modal-close" id="modifyModalClose">×</span>
+  </div>
+  <div class="modify-modal-body">
+    <div class="result-tweak-header">
+      <span class="result-tweak-title">输入修改要求</span>
+      <span class="result-tweak-cost">消耗 <strong id="modifyCost">1</strong> 点</span>
+    </div>
+    <input type="text" id="modifyFeedbackInput" class="login-input" placeholder="比如：背景改成深蓝、增加品牌感、弱化边框" maxlength="200">
+    <button class="btn-primary" id="modifySubmitBtn" type="button">重新生成</button>
+  </div>
+</div>
+</div>
+
+<!-- 6. 使用帮助页 -->
 <div class="page" id="pageHelp">
 <header class="sub-header">
   <span class="back-btn" id="helpBackBtn">←</span>
@@ -310,7 +443,7 @@
       </div>
       <div class="help-faq-item">
         <div class="help-faq-q">点数怎么获得？</div>
-        <div class="help-faq-a">新用户注册赠送免费点数，用完后可在个人中心充值获取更多</div>
+        <div class="help-faq-a">新用户注册赠送免费点数，也可以在个人中心复制邀请链接，邀请好友注册并完成首次生成后获得奖励点数</div>
       </div>
       <div class="help-faq-item">
         <div class="help-faq-q">生成的图片可以商用吗？</div>

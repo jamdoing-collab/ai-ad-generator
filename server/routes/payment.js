@@ -5,20 +5,10 @@ const config = require('../config');
 
 const router = express.Router();
 
-// 获取充值套餐
-router.get('/packages', (req, res) => {
-  const packages = Object.entries(config.RECHARGE_PACKAGES).map(([id, pkg]) => ({
-    id,
-    price: (pkg.price / 100).toFixed(2),
-    priceCent: pkg.price,
-    points: pkg.points
-  }));
-  
-  res.json({ code: 0, data: packages });
-});
+router.use(auth);
 
 // 创建订单
-router.post('/create', auth, (req, res) => {
+router.post('/create', (req, res) => {
   const { packageId } = req.body;
   const pkg = config.RECHARGE_PACKAGES[packageId];
   
@@ -29,17 +19,19 @@ router.post('/create', auth, (req, res) => {
   try {
     const orderId = db.createOrder(req.userId, packageId, pkg.price, pkg.points);
 
-    // 模拟第三方支付异步通知，避免前端伪造支付成功。
-    setTimeout(() => {
-      try {
-        const result = db.completeOrderAtomic(orderId);
-        if (!result.ok) {
-          console.error('[模拟支付失败]', result.message);
+    // 开发环境模拟第三方支付异步通知；生产环境必须由真实支付回调完成订单。
+    if (config.NODE_ENV !== 'production') {
+      setTimeout(() => {
+        try {
+          const result = db.completeOrderAtomic(orderId);
+          if (!result.ok) {
+            console.error('[模拟支付失败]', result.message);
+          }
+        } catch (err) {
+          console.error('[模拟支付完成错误]', err);
         }
-      } catch (err) {
-        console.error('[模拟支付完成错误]', err);
-      }
-    }, 1500);
+      }, 1500);
+    }
     
     res.json({
       code: 0,
@@ -57,7 +49,7 @@ router.post('/create', auth, (req, res) => {
 });
 
 // 确认支付（客户端轮询用）
-router.post('/confirm', auth, (req, res) => {
+router.post('/confirm', (req, res) => {
   const { orderId } = req.body;
   
   try {
@@ -91,7 +83,7 @@ router.post('/confirm', auth, (req, res) => {
 });
 
 // 我的订单
-router.get('/orders', auth, (req, res) => {
+router.get('/orders', (req, res) => {
   const orders = db.getUserOrders(req.userId);
   
   const data = orders.map(order => ({

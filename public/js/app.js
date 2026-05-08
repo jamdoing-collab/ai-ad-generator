@@ -6,6 +6,7 @@ const FALLBACK_MATERIALS = [
   { key: 'menu', name: '餐饮菜单', icon: '🍜', defaultW: 21, defaultH: 30 },
   { key: 'rollup', name: '易拉宝', icon: '🎞️', defaultW: 80, defaultH: 200 },
   { key: 'wall', name: '文化墙', icon: '🏢', defaultW: 300, defaultH: 150 },
+  { key: 'brochure', name: '宣传册封面', icon: '📒', defaultW: 42, defaultH: 29 },
   { key: 'flyer', name: '宣传单页', icon: '📄', defaultW: 21, defaultH: 30 },
   { key: 'ecom', name: '电商主图', icon: '🛒', defaultW: 1024, defaultH: 1024, unit: 'px' },
   { key: 'moment', name: '朋友圈配图', icon: '📱', defaultW: 1024, defaultH: 1024, unit: 'px' },
@@ -19,13 +20,22 @@ let uploadedImages = [];
 let selectedQuality = 'default';
 let isGenerating = false;
 let currentResultImages = [];
+let currentResultImagesPath = [];
 let currentResultIndex = 0;
+let currentResultImageId = null;
+let currentResultScene = null;
+let currentResultText = null;
+let currentResultWidth = null;
+let currentResultHeight = null;
+let currentDetailMode = 'result';
 let resultSourcePage = 'generate';
 let selectedPackageIndex = 0;
 let packages = [];
 let authExpiredNotified = false;
 let toastTimer = null;
 let pendingMineAfterLogin = false;
+let inviteInfo = null;
+let pendingInviteCode = localStorage.getItem('inviteCode') || '';
 
 const $ = id => document.getElementById(id);
 
@@ -49,6 +59,99 @@ function setDisplay(id, value) {
   if (element) element.style.display = value;
 }
 
+function getCurrentCost() {
+  return selectedQuality === '4k' ? 3 : selectedQuality === '2k' ? 2 : 1;
+}
+
+const QUALITY_HINTS = {
+  default: { cost: 1, text: 'AI创作中...', sub: '预计需要15-30秒', label: '1K，消耗 1 点' },
+  '2k': { cost: 2, text: 'AI高清创作中...', sub: '预计需要30-60秒', label: '2K，消耗 2 点' },
+  '4k': { cost: 3, text: 'AI超清创作中...', sub: '预计需要1-2分钟', label: '4K，消耗 3 点' }
+};
+
+function getCurrentQualityConfig() {
+  return QUALITY_HINTS[selectedQuality] || QUALITY_HINTS.default;
+}
+
+function getCurrentMaterialUnit(sceneKey = currentResultScene) {
+  return MATERIALS.find(m => m.key === sceneKey)?.unit || 'cm';
+}
+
+function copyText(text, successMessage = '已复制') {
+  if (!text) return;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => {
+      showToast(successMessage);
+    }).catch(() => fallbackCopy(text, successMessage));
+  } else {
+    fallbackCopy(text, successMessage);
+  }
+}
+
+function getCurrentDetailShareLink() {
+  if (currentDetailMode === 'history' && currentResultImageId) {
+    return `${window.location.origin}${window.location.pathname}#history-${currentResultImageId}`;
+  }
+  if (currentResultImageId) {
+    return `${window.location.origin}${window.location.pathname}#result-${currentResultImageId}`;
+  }
+  return `${window.location.origin}${window.location.pathname}`;
+}
+
+function renderResultDetailMeta() {
+  const sceneName = MATERIALS.find(m => m.key === currentResultScene)?.name || currentResultScene || '-';
+  const unit = getCurrentMaterialUnit(currentResultScene);
+  const size = currentResultWidth && currentResultHeight ? `${currentResultWidth}×${currentResultHeight}${unit}` : '-';
+  setText('resultDetailScene', sceneName);
+  setText('resultDetailSize', size);
+}
+
+function applyDetailResult({ scene, text, width, height, images, imageId, points, mode }) {
+  currentResultScene = scene;
+  currentResultText = text;
+  currentResultWidth = width;
+  currentResultHeight = height;
+  currentResultImages = images.map(img => img.url);
+  currentResultImagesPath = images.map(img => img.localPath || '');
+  currentResultImageId = imageId || currentResultImageId;
+  currentResultIndex = 0;
+  currentDetailMode = mode;
+  userInfo.points = points;
+}
+
+function openModifyModal(mode) {
+  currentDetailMode = mode;
+  setText('modifyModalTitle', mode === 'history' ? '修改历史图片' : '修改当前图片');
+  setText('modifyCost', getCurrentCost());
+  if ($('modifyFeedbackInput')) $('modifyFeedbackInput').value = '';
+  if ($('modifySubmitBtn')) {
+    $('modifySubmitBtn').disabled = false;
+    $('modifySubmitBtn').textContent = '重新生成';
+  }
+  setDisplay('modifyModal', 'flex');
+}
+
+function closeModifyModal() {
+  setDisplay('modifyModal', 'none');
+}
+
+function captureInviteCode() {
+  const params = new URLSearchParams(window.location.search);
+  const ref = (params.get('ref') || params.get('invite') || '').trim();
+  if (/^[a-zA-Z0-9_-]{4,32}$/.test(ref)) {
+    pendingInviteCode = ref;
+    localStorage.setItem('inviteCode', ref);
+  }
+}
+
+function parseDetailHash() {
+  const hash = (window.location.hash || '').replace(/^#/, '');
+  if (!hash) return null;
+  const match = hash.match(/^(history|result)-(\d+)$/);
+  if (!match) return null;
+  return { mode: match[1], id: Number(match[2]) };
+}
+
 function showToast(message) {
   let toast = $('globalToast');
   if (!toast) {
@@ -65,7 +168,7 @@ function showToast(message) {
   }, 2200);
 }
 
-function fallbackCopy(text) {
+function fallbackCopy(text, successMessage = '已复制') {
   const ta = document.createElement('textarea');
   ta.value = text;
   ta.style.cssText = 'position:fixed;left:-9999px';
@@ -73,7 +176,7 @@ function fallbackCopy(text) {
   ta.select();
   try {
     document.execCommand('copy');
-    showToast('微信号已复制');
+    showToast(successMessage);
   } catch {
     showToast('复制失败，请手动复制');
   }
@@ -84,7 +187,7 @@ async function api(endpoint, options = {}) {
   const headers = { 'Content-Type': 'application/json' };
   if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
   const controller = new AbortController();
-  const timeout = options.timeout || (endpoint.startsWith('/generate/') ? 300000 : 90000);
+  const timeout = options.timeout || (endpoint.startsWith('/generate/') ? 660000 : 90000);
   const timeoutId = setTimeout(() => controller.abort(), timeout);
   let res;
   try {
@@ -98,7 +201,7 @@ async function api(endpoint, options = {}) {
   let data;
   try {
     data = await res.json();
-  } catch (e) {
+  } catch {
     return { code: -1, message: '服务器响应异常' };
   }
   if (data.code === 401) {
@@ -125,6 +228,7 @@ async function loadMaterials() {
 }
 
 async function init() {
+  captureInviteCode();
   await loadMaterials();
   renderMaterials();
   renderUploadedImages();
@@ -132,6 +236,16 @@ async function init() {
   bindMobileEvents();
   selectMaterial(0);
   checkAuth();
+  window.addEventListener('hashchange', () => handleDetailHash());
+  setTimeout(() => handleDetailHash(), 0);
+}
+
+async function handleDetailHash() {
+  const detail = parseDetailHash();
+  if (!detail || !authToken) return;
+  if (detail.mode === 'history') {
+    await loadHistoryDetailById(detail.id);
+  }
 }
 
 function resetForm() {
@@ -167,8 +281,8 @@ async function loadUserInfo() {
   }
 }
 
-function logout() {
-  api('/auth/logout', { method: 'POST' });
+async function logout() {
+  await api('/auth/logout', { method: 'POST' });
   authToken = null;
   userInfo = null;
   authExpiredNotified = false;
@@ -201,7 +315,7 @@ function bindMobileEvents() {
     selectMaterial(parseInt(chip.dataset.index));
   });
 
-  $('textInput').addEventListener('input', e => {
+  $('textInput').addEventListener('input', () => {
     setTextInputErrorState('textInput', false);
     $('textError').textContent = '';
   });
@@ -223,14 +337,20 @@ function bindMobileEvents() {
     document.querySelectorAll('#qualityRow .quality-chip').forEach(c => {
       c.classList.toggle('active', c.dataset.quality === selectedQuality);
     });
-    const hints = { default: '1K，消耗 1 点', '2k': '2K，消耗 2 点', '4k': '4K，消耗 3 点' };
-    $('qualityHint').textContent = hints[selectedQuality] || '';
-    $('genBtn').textContent = `开始生成（${selectedQuality === '4k' ? 3 : selectedQuality === '2k' ? 2 : 1}点）`;
+    const config = getCurrentQualityConfig();
+    $('qualityHint').textContent = config.label;
+    $('genBtn').textContent = `开始生成（${config.cost}点）`;
   });
 
   $('genBtn').addEventListener('click', () => startGenerate());
 
   $('mineEntry').addEventListener('click', () => {
+    if (!userInfo) {
+      pendingMineAfterLogin = true;
+      showToast('请先登录后进入个人中心');
+      showLoginModal();
+      return;
+    }
     updateMineDisplay();
     showPage('mine');
   });
@@ -245,15 +365,16 @@ function bindMobileEvents() {
 
   $('helpBtn').addEventListener('click', () => showPage('help'));
   $('helpBackBtn').addEventListener('click', () => showPage('mine'));
+  $('inviteBtn').addEventListener('click', loadInvitePage);
+  $('inviteBackBtn').addEventListener('click', () => showPage('mine'));
+  $('copyInviteBtn').addEventListener('click', copyInviteLink);
 
   $('retryBtn').addEventListener('click', () => {
-    resetForm();
     showPage('generate');
   });
   $('downloadBtn').addEventListener('click', downloadImage);
-  $('regenBtn').addEventListener('click', () => {
-    showPage('generate');
-  });
+  $('modifyBtn').addEventListener('click', () => openModifyModal('result'));
+  $('shareBtn').addEventListener('click', () => copyText(getCurrentDetailShareLink(), '详情页链接已复制'));
 
   // 全屏图片查看
   $('resultImg').addEventListener('click', () => {
@@ -268,6 +389,7 @@ function bindMobileEvents() {
   $('resultBackBtn').addEventListener('click', e => {
     if (isGenerating) { e.stopPropagation(); showToast('正在生成中，请稍候'); return; }
     resetForm();
+    if (window.location.hash.startsWith('#result-')) history.replaceState(null, '', window.location.pathname + window.location.search);
     showPage(resultSourcePage);
   }, true);
 
@@ -284,29 +406,37 @@ function bindMobileEvents() {
   });
 
   $('historyBtn').addEventListener('click', loadHistory);
+  $('historyDetailBackBtn').addEventListener('click', () => {
+    if (window.location.hash.startsWith('#history-')) history.replaceState(null, '', window.location.pathname + window.location.search);
+    showPage('history');
+  });
+  $('historyDetailSaveBtn').addEventListener('click', downloadImage);
+  $('historyDetailModifyBtn').addEventListener('click', () => openModifyModal('history'));
+  $('historyDetailShareBtn').addEventListener('click', () => copyText(getCurrentDetailShareLink(), '详情页链接已复制'));
 
   $('contactBtn').addEventListener('click', () => {
     setDisplay('contactModal', 'flex');
   });
 
   $('loginModalClose').addEventListener('click', hideLoginModal);
-  $('loginModal').addEventListener('click', e => {
-    if (e.target.id === 'loginModal') hideLoginModal();
-  });
+    $('loginModal').addEventListener('click', event => {
+      if (event.target.id === 'loginModal') hideLoginModal();
+    });
   $('modalLoginBtn').addEventListener('click', () => {
     doLogin($('modalLoginUsername').value.trim(), $('modalLoginPassword').value, {
       onSuccess: () => {
         hideLoginModal();
-        pendingMineAfterLogin = false;
+        if (pendingMineAfterLogin) {
+          pendingMineAfterLogin = false;
+          showPage('mine');
+        }
       }
     });
   });
 
   $('loginSwitchBtn').addEventListener('click', () => {
     const isLogin = $('loginModalTitle').textContent === '登录';
-    $('loginModalTitle').textContent = isLogin ? '注册' : '登录';
-    $('modalLoginBtn').textContent = isLogin ? '注册' : '登录';
-    $('loginSwitchBtn').textContent = isLogin ? '已有账号？去登录' : '没有账号？去注册';
+    setLoginModalMode(isLogin ? 'register' : 'login');
   });
 
   $('rechargeClose').addEventListener('click', () => setDisplay('rechargeModal', 'none'));
@@ -319,14 +449,26 @@ function bindMobileEvents() {
     if (e.target.id === 'contactModal') setDisplay('contactModal', 'none');
   });
 
+  $('modifyModalClose').addEventListener('click', closeModifyModal);
+  $('modifyModal').addEventListener('click', e => {
+    if (e.target.id === 'modifyModal') closeModifyModal();
+  });
+  $('modifySubmitBtn').addEventListener('click', () => {
+    if (currentDetailMode === 'history') {
+      regenerateCurrentDetail('history');
+      return;
+    }
+    regenerateCurrentDetail('result');
+  });
+
   $('copyWechatBtn').addEventListener('click', () => {
     const wechat = $('contactWechat').textContent.trim();
     if (navigator.clipboard) {
       navigator.clipboard.writeText(wechat).then(() => {
         showToast('微信号已复制');
-      }).catch(() => fallbackCopy(wechat));
+      }).catch(() => fallbackCopy(wechat, '微信号已复制'));
     } else {
-      fallbackCopy(wechat);
+      fallbackCopy(wechat, '微信号已复制');
     }
   });
 
@@ -350,7 +492,7 @@ function bindSizeStepEvents() {
   });
 }
 
-function selectMaterial(index) {
+async function selectMaterial(index) {
   if (!MATERIALS[index]) return;
   currentMaterial = MATERIALS[index];
 
@@ -363,14 +505,14 @@ function selectMaterial(index) {
   // 动态更新单位（cm 或 px）
   const unit = currentMaterial.unit || 'cm';
   document.querySelectorAll('.size-unit').forEach(el => el.textContent = unit);
-  $('sizeHint').textContent = unit === 'px' ? '尺寸范围：64-4096px' : '尺寸范围：1-300cm';
+  $('sizeHint').textContent = '计算中…';
 
-  validateSize();
+  await validateSize();
 
   // 保持当前画质选择，更新提示文案
-  const hints = { default: '1K，消耗 1 点', '2k': '2K，消耗 2 点', '4k': '4K，消耗 3 点' };
-  $('qualityHint').textContent = hints[selectedQuality] || hints.default;
-  $('genBtn').textContent = `开始生成（${selectedQuality === '4k' ? 3 : selectedQuality === '2k' ? 2 : 1}点）`;
+  const config = getCurrentQualityConfig();
+  $('qualityHint').textContent = config.label;
+  $('genBtn').textContent = `开始生成（${config.cost}点）`;
 }
 
 async function calcAspectRatio(width, height) {
@@ -492,6 +634,12 @@ function showResultImage(index) {
   currentResultIndex = Math.max(0, Math.min(index, currentResultImages.length - 1));
   $('resultImg').src = currentResultImages[currentResultIndex];
   renderResultDots($('resultDots'));
+  updateTweakCost();
+  renderResultDetailMeta();
+}
+
+function updateTweakCost() {
+  if ($('modifyCost')) $('modifyCost').textContent = getCurrentCost();
 }
 
 function onResultDotClick(event) {
@@ -510,6 +658,10 @@ async function validateAll() {
     setTextInputErrorState('textInput', true);
     showToast('请输入至少2个字');
     valid = false;
+  } else if (text.length > 600) {
+    setTextInputErrorState('textInput', true);
+    showToast('文字内容不能超过600个字符');
+    valid = false;
   }
 
   if (!(await validateSize())) {
@@ -523,7 +675,7 @@ async function validateAll() {
 async function startGenerate() {
   if (isGenerating) return;
   if (!authToken || !userInfo) { showLoginModal(); return; }
-  const needPoints = selectedQuality === '4k' ? 3 : selectedQuality === '2k' ? 2 : 1;
+  const needPoints = getCurrentCost();
   if (userInfo.points < needPoints) { alert('点数不足，请充值'); showRechargeModal(); return; }
 
   isGenerating = true;
@@ -543,12 +695,7 @@ async function startGenerate() {
   $('genBtn').disabled = true;
   $('genBtn').textContent = '生成中...';
 
-  const loadingMsgs = {
-    default: { text: 'AI创作中...', sub: '预计需要15-30秒' },
-    '2k': { text: 'AI高清创作中...', sub: '预计需要30-60秒' },
-    '4k': { text: 'AI超清创作中...', sub: '预计需要1-2分钟' },
-  };
-  const msg = loadingMsgs[selectedQuality] || loadingMsgs.default;
+  const msg = getCurrentQualityConfig();
   $('loadingText').textContent = msg.text;
   $('loadingSub').textContent = msg.sub;
 
@@ -569,33 +716,111 @@ async function startGenerate() {
 
     if (res.code === 0) {
       if (!res.data.images?.length) throw new Error('生成结果为空，请重试');
-      currentResultImages = res.data.images.map(img => img.url);
-      currentResultIndex = 0;
-      userInfo.points = res.data.points;
+      applyDetailResult({
+        scene: currentMaterial.key,
+        text,
+        width,
+        height,
+        images: res.data.images,
+        imageId: res.data.imageId || null,
+        points: res.data.points,
+        mode: 'result'
+      });
       $('loadingWrap').style.display = 'none';
       $('resultWrap').style.display = 'flex';
       showResultImage(0);
+      window.location.hash = `result-${currentResultImageId}`;
       updateMineDisplay();
-      if ($('feedbackInput')) $('feedbackInput').value = '';
     } else {
-      throw new Error(res.message);
+      const msg = res.code === 503 ? '服务未配置密钥，请联系管理员' : res.message;
+      throw new Error(msg);
     }
   } catch (err) {
-    $('loadingWrap').style.display = 'none';
-    $('errorState').style.display = 'flex';
-    $('errorMsg').textContent = err.message || '生成失败';
+    if (err.message && err.message.includes('未配置密钥')) {
+      showToast(err.message);
+      showPage('generate');
+    } else {
+      $('loadingWrap').style.display = 'none';
+      $('errorState').style.display = 'flex';
+      $('errorMsg').textContent = err.message || '生成失败';
+    }
   } finally {
     isGenerating = false;
     $('genBtn').disabled = false;
-    const cost = selectedQuality === '4k' ? 3 : selectedQuality === '2k' ? 2 : 1;
-    $('genBtn').textContent = `开始生成（${cost}点）`;
+    $('genBtn').textContent = `开始生成（${getCurrentCost()}点）`;
+  }
+}
+
+async function regenerateCurrentDetail(mode) {
+  if (isGenerating) return;
+  if (!authToken || !userInfo) { showLoginModal(); return; }
+
+  const feedback = ($('modifyFeedbackInput').value || '').trim();
+  const needPoints = getCurrentCost();
+  if (userInfo.points < needPoints) { alert('点数不足，请充值'); showRechargeModal(); return; }
+
+  isGenerating = true;
+  $('modifySubmitBtn').disabled = true;
+  $('modifySubmitBtn').textContent = '重新生成中...';
+
+  const localPath = currentResultImagesPath[currentResultIndex] || '';
+  const refSrc = localPath || currentResultImages[currentResultIndex];
+
+  try {
+    const res = await api('/generate/image', {
+      method: 'POST',
+      body: JSON.stringify({
+        scene: currentResultScene,
+        text: currentResultText,
+        width: currentResultWidth,
+        height: currentResultHeight,
+        quality: selectedQuality,
+        referenceImage: refSrc,
+        feedback: feedback || null
+      })
+    });
+
+    if (res.code === 0) {
+      if (!res.data.images?.length) throw new Error('生成结果为空，请重试');
+
+      applyDetailResult({
+        scene: currentResultScene,
+        text: currentResultText,
+        width: currentResultWidth,
+        height: currentResultHeight,
+        images: res.data.images,
+        imageId: res.data.imageId || currentResultImageId,
+        points: res.data.points,
+        mode
+      });
+
+      if (mode === 'history') {
+        $('historyDetailImg').src = currentResultImages[0];
+      } else {
+        showResultImage(0);
+      }
+      updateMineDisplay();
+      closeModifyModal();
+      window.location.hash = `${mode}-${currentResultImageId}`;
+      showToast('调整完成');
+    } else {
+      const msg = res.code === 503 ? '服务未配置密钥，请联系管理员' : res.message;
+      throw new Error(msg);
+    }
+  } catch (err) {
+    showToast(err.message || '调整失败，请重试');
+  } finally {
+    isGenerating = false;
+    $('modifySubmitBtn').disabled = false;
+    $('modifySubmitBtn').textContent = '重新生成';
   }
 }
 
 function downloadImage() {
   const url = currentResultImages[currentResultIndex];
   if (!url) return;
-  const filename = `AI广告-${currentMaterial?.name || 'design'}-${Date.now()}.png`;
+  const materialName = MATERIALS.find(m => m.key === currentResultScene)?.name || currentMaterial?.name || 'design';
+  const filename = `AI广告-${materialName}-${Date.now()}.png`;
   const link = document.createElement('a');
   link.href = url;
   link.download = filename;
@@ -610,10 +835,25 @@ function showPage(page) {
   if (target) target.classList.add('page-active');
 }
 
+async function loadHistoryDetailById(imageId) {
+  const res = await api(`/generate/history/${imageId}`);
+  if (res.code !== 0 || !res.data) {
+    showToast(res.message || '历史详情加载失败');
+    return;
+  }
+  loadHistoryDetail(res.data);
+}
+
+function setLoginModalMode(mode) {
+  const isRegister = mode === 'register';
+  $('loginModalTitle').textContent = isRegister ? '注册' : '登录';
+  $('modalLoginBtn').textContent = isRegister ? '注册' : '登录';
+  $('loginSwitchBtn').textContent = isRegister ? '已有账号？去登录' : '没有账号？去注册';
+  setDisplay('inviteRegisterHint', isRegister && pendingInviteCode ? 'block' : 'none');
+}
+
 function showLoginModal() {
-  $('loginModalTitle').textContent = '登录';
-  $('modalLoginBtn').textContent = '登录';
-  $('loginSwitchBtn').textContent = '没有账号？去注册';
+  setLoginModalMode(pendingInviteCode ? 'register' : 'login');
   setDisplay('loginModal', 'flex');
 }
 
@@ -628,16 +868,24 @@ async function doLogin(username, password, options = {}) {
 
   const isRegister = $('loginModalTitle').textContent === '注册';
   const endpoint = isRegister ? '/auth/register' : '/auth/login';
+  const payload = { username, password };
+  if (isRegister && pendingInviteCode) {
+    payload.inviteCode = pendingInviteCode;
+  }
 
   const res = await api(endpoint, {
     method: 'POST',
-    body: JSON.stringify({ username, password })
+    body: JSON.stringify(payload)
   });
 
   if (res.code === 0) {
     authToken = res.data.token;
     userInfo = res.data.user;
     localStorage.setItem('token', authToken);
+    if (isRegister) {
+      localStorage.removeItem('inviteCode');
+      pendingInviteCode = '';
+    }
     updateMineDisplay();
     showToast(isRegister ? '注册成功' : '登录成功');
     if (typeof options.onSuccess === 'function') {
@@ -666,6 +914,7 @@ function updateMineDisplay() {
     setDisplay('mineLoginBtn', 'none');
     setDisplay('pointsCard', 'flex');
     setDisplay('historyBtn', 'flex');
+    setDisplay('inviteBtn', 'flex');
     setDisplay('logoutBtn', 'block');
     setDisplay('adminEntry', userInfo.is_admin ? 'flex' : 'none');
   } else {
@@ -675,8 +924,55 @@ function updateMineDisplay() {
     setDisplay('mineLoginBtn', 'block');
     setDisplay('pointsCard', 'none');
     setDisplay('historyBtn', 'none');
+    setDisplay('inviteBtn', 'none');
     setDisplay('logoutBtn', 'none');
     setDisplay('adminEntry', 'none');
+  }
+}
+
+function getInviteLink() {
+  const code = inviteInfo?.inviteCode || userInfo?.invite_code;
+  if (!code) return '';
+  return `${window.location.origin}${window.location.pathname}?ref=${encodeURIComponent(code)}`;
+}
+
+async function loadInvitePage() {
+  if (!userInfo) {
+    showLoginModal();
+    return;
+  }
+
+  showPage('invite');
+  setText('inviteLink', '邀请链接生成中...');
+
+  const res = await api('/user/invite');
+  if (res.code !== 0) {
+    showToast(res.message || '邀请信息加载失败');
+    setText('inviteLink', '暂时无法生成邀请链接');
+    return;
+  }
+
+  inviteInfo = res.data;
+  const summary = inviteInfo.summary || {};
+  setText('inviteCount', summary.invitedCount || 0);
+  setText('inviteEffectiveCount', summary.effectiveCount || 0);
+  setText('inviteRewardPoints', summary.rewardPoints || 0);
+  setText('inviteLink', getInviteLink());
+}
+
+function copyInviteLink() {
+  const link = getInviteLink();
+  if (!link) {
+    showToast('邀请链接暂不可用');
+    return;
+  }
+
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(link).then(() => {
+      showToast('邀请链接已复制');
+    }).catch(() => fallbackCopy(link, '邀请链接已复制'));
+  } else {
+    fallbackCopy(link, '邀请链接已复制');
   }
 }
 
@@ -760,16 +1056,48 @@ $('payBtn')?.addEventListener('click', doRecharge);
 let historyOffset = 0;
 let historyLoading = false;
 let historyDone = false;
-let historyScrollHandler = null;
+let historyLoadFailed = false;
 const HISTORY_BATCH = 10;
+
+function renderHistoryLoadMore(listEl) {
+  if (!listEl) return;
+  const existing = $('historyLoadMoreWrap');
+  if (existing) existing.remove();
+  if (historyDone || historyOffset === 0) return;
+
+  const wrap = document.createElement('div');
+  wrap.id = 'historyLoadMoreWrap';
+  wrap.className = 'history-load-more-wrap';
+  wrap.innerHTML = `<button class="btn-action btn-regen history-load-more-btn" id="historyLoadMoreBtn" type="button">${historyLoading ? '加载中...' : '加载更多'}</button>`;
+  listEl.parentNode?.appendChild(wrap);
+
+  const btn = $('historyLoadMoreBtn');
+  if (btn) {
+    btn.disabled = historyLoading;
+    btn.addEventListener('click', async () => {
+      await loadMoreHistory(listEl);
+    });
+  }
+}
 
 function renderHistoryItems(items, listEl) {
   const html = items.map(item => {
     const imgUrl = item.thumbUrl || item.imagePaths?.[0];
     const fullUrl = item.imagePaths?.[0];
     const sceneName = MATERIALS.find(m => m.key === item.scene)?.name || item.scene;
+    const width = item.width || '';
+    const height = item.height || '';
+    const sizeStr = width && height ? `${width}×${height}` : '';
     return `
-    <div class="history-card" data-full-url="${escapeHtml(fullUrl || '')}">
+    <div class="history-card" 
+      data-id="${item.id}" 
+      data-full-url="${escapeHtml(fullUrl || '')}"
+      data-scene="${escapeHtml(item.scene || '')}"
+      data-prompt="${escapeHtml(item.prompt || '')}"
+      data-width="${width}"
+      data-height="${height}"
+      data-size="${sizeStr}"
+      data-date="${item.createdAt || ''}">
       <div class="history-card-img">${imgUrl ? `<img src="${imgUrl}" alt="${escapeHtml(sceneName)}" loading="lazy">` : '<span class="history-card-empty">暂无图片</span>'}</div>
       <div class="history-card-label">${escapeHtml(sceneName)}</div>
     </div>
@@ -782,11 +1110,7 @@ function renderHistoryItems(items, listEl) {
     const card = cards[cards.length - items.length + i];
     if (card) {
       card.addEventListener('click', () => {
-        const fullUrl = card.dataset.fullUrl;
-        if (fullUrl) {
-          $('fullscreenImg').src = fullUrl;
-          $('fullscreenViewer').style.display = 'flex';
-        }
+        loadHistoryDetail(item);
       });
     }
   });
@@ -795,6 +1119,8 @@ function renderHistoryItems(items, listEl) {
 async function loadMoreHistory(listEl) {
   if (historyLoading || historyDone) return;
   historyLoading = true;
+  historyLoadFailed = false;
+  renderHistoryLoadMore(listEl);
 
   try {
     const res = await api(`/generate/history?limit=${HISTORY_BATCH}&offset=${historyOffset}`);
@@ -805,8 +1131,11 @@ async function loadMoreHistory(listEl) {
     renderHistoryItems(res.data, listEl);
     historyOffset += res.data.length;
     if (res.data.length < HISTORY_BATCH) historyDone = true;
-  } catch { showToast('加载历史记录失败'); } finally {
+  } catch {
+    historyLoadFailed = true;
+  } finally {
     historyLoading = false;
+    renderHistoryLoadMore(listEl);
   }
 }
 
@@ -818,6 +1147,7 @@ async function loadHistory() {
   historyOffset = 0;
   historyLoading = false;
   historyDone = false;
+  historyLoadFailed = false;
 
   list.innerHTML = '<div class="history-list" id="historyListInner"></div>';
   const listEl = $('historyListInner');
@@ -825,24 +1155,58 @@ async function loadHistory() {
   await loadMoreHistory(listEl);
 
   if (historyOffset === 0) {
-    list.innerHTML = `
+    list.innerHTML = historyLoadFailed ? `
+    <div class="history-empty history-error-state">
+      <div class="history-empty-icon">⚠️</div>
+      <div class="history-empty-title">加载失败</div>
+      <div class="history-empty-desc">点击重试后重新加载历史记录</div>
+      <button class="error-btn history-retry-btn" id="historyRetryBtn">点击重试</button>
+    </div>` : `
     <div class="history-empty">
       <div class="history-empty-icon">🎨</div>
       <div class="history-empty-title">暂无生成记录</div>
       <div class="history-empty-desc">去创作你的第一张AI广告设计吧</div>
     </div>`;
+
+    if (historyLoadFailed) {
+      const retryBtn = $('historyRetryBtn');
+      if (retryBtn) retryBtn.addEventListener('click', () => loadHistory());
+    }
     return;
   }
 
-  // 滚动到底部自动加载更多（移除旧监听器防止重复绑定）
-  const mainEl = list.closest('.main') || list;
-  if (historyScrollHandler) mainEl.removeEventListener('scroll', historyScrollHandler);
-  historyScrollHandler = () => {
-    if (mainEl.scrollTop + mainEl.clientHeight >= mainEl.scrollHeight - 100) {
-      loadMoreHistory(listEl);
-    }
-  };
-  mainEl.addEventListener('scroll', historyScrollHandler);
+  renderHistoryLoadMore(listEl);
+}
+
+function loadHistoryDetail(item) {
+  const fullUrl = item.imagePaths?.[0];
+  const sceneName = MATERIALS.find(m => m.key === item.scene)?.name || item.scene;
+  const width = item.width || 0;
+  const height = item.height || 0;
+  const unit = item.scene && MATERIALS.find(m => m.key === item.scene)?.unit || 'cm';
+  const sizeStr = width && height ? `${width}×${height}${unit}` : '-';
+  const dateStr = item.createdAt ? new Date(item.createdAt).toLocaleString('zh-CN') : '-';
+
+  $('historyDetailImg').src = fullUrl || '';
+  $('historyDetailScene').textContent = sceneName;
+  $('historyDetailSize').textContent = sizeStr;
+  $('historyDetailDate').textContent = dateStr;
+
+  applyDetailResult({
+    scene: item.scene,
+    text: item.prompt,
+    width,
+    height,
+    images: [{ url: fullUrl, localPath: fullUrl }],
+    imageId: item.id,
+    points: userInfo?.points ?? 0,
+    mode: 'history'
+  });
+
+  updateTweakCost();
+  renderResultDetailMeta();
+  window.location.hash = `history-${item.id}`;
+  showPage('historyDetail');
 }
 
 function showConfirm(message, onOk) {

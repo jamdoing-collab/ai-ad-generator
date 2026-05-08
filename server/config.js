@@ -37,10 +37,14 @@ module.exports = {
   ADMIN_USERNAMES: (process.env.ADMIN_USERNAMES || '').split(',').map(item => item.trim()).filter(Boolean),
   
   // 点数配置
-NEW_USER_POINTS: parseInt(process.env.NEW_USER_POINTS, 10) || 10,
-POINTS_PER_GENERATE: parseInt(process.env.POINTS_PER_GENERATE, 10) || 1,
-POINTS_PER_GENERATE_HD: parseInt(process.env.POINTS_PER_GENERATE_HD, 10) || 2,
-POINTS_PER_GENERATE_4K: parseInt(process.env.POINTS_PER_GENERATE_4K, 10) || 3,
+  NEW_USER_POINTS: parseInt(process.env.NEW_USER_POINTS, 10) || 10,
+  POINTS_PER_GENERATE: parseInt(process.env.POINTS_PER_GENERATE, 10) || 1,
+  POINTS_PER_GENERATE_HD: parseInt(process.env.POINTS_PER_GENERATE_HD, 10) || 2,
+  POINTS_PER_GENERATE_4K: parseInt(process.env.POINTS_PER_GENERATE_4K, 10) || 3,
+
+  // 邀请奖励配置
+  INVITE_NEW_USER_POINTS: parseInt(process.env.INVITE_NEW_USER_POINTS, 10) || 2,
+  INVITE_FIRST_GENERATE_POINTS: parseInt(process.env.INVITE_FIRST_GENERATE_POINTS, 10) || 2,
   
   // 充值套餐（价格：分，点数）
   RECHARGE_PACKAGES: {

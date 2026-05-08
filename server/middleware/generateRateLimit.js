@@ -1,3 +1,4 @@
+// 内存态生成频率限制：仅对当前进程有效，重启后计数会清空。
 const userAttempts = new Map();
 const WINDOW_MS = 60 * 1000;
 const MAX_PER_WINDOW = 3;

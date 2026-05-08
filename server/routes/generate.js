@@ -61,7 +61,7 @@ async function validateImageFormat(filePath) {
       throw new Error('不支持的图片格式');
     }
     return true;
-  } catch (err) {
+  } catch {
     throw new Error('无效的图片文件');
   }
 }
@@ -101,8 +101,8 @@ router.post('/image', async (req, res) => {
       return res.status(400).json({ code: 400, message: '请输入要生成的文字内容' });
     }
 
-    if (text.trim().length > 200) {
-      return res.status(400).json({ code: 400, message: '文字内容不能超过200个字符' });
+    if (text.trim().length > 600) {
+      return res.status(400).json({ code: 400, message: '文字内容不能超过600个字符' });
     }
     
     if (!scene || !VALID_SCENES.includes(scene)) {
@@ -190,7 +190,6 @@ router.post('/image', async (req, res) => {
     // 保存图片到文件
     const imagePaths = [];
     for (let i = 0; i < generatedImages.length; i++) {
-      const unitLabel = isPixelUnit ? 'px' : 'cm';
       const filename = `${scene}_${parsedWidth}x${parsedHeight}${unitLabel}_${uuidv4().slice(0,8)}.png`;
       const filepath = path.join(generatedDir, filename);
       await fs.writeFile(filepath, generatedImages[i].buffer);
@@ -204,17 +203,29 @@ router.post('/image', async (req, res) => {
     } catch (saveErr) {
       console.error('[保存图片记录失败]', saveErr.message);
       for (const p of imagePaths) {
-        try { await fs.unlink(path.join(uploadsRoot, p.replace(/^\/uploads\//, ''))); } catch (e) {}
+        try { await fs.unlink(path.join(uploadsRoot, p.replace(/^\/uploads\//, ''))); } catch {
+        }
       }
       return res.status(500).json({ code: 500, message: '生成成功但保存记录失败，请联系客服' });
     }
 
     console.log(`[生成成功] 图片ID:${imageId}`);
+    if (db.getUserImageCount(req.userId) === 1) {
+      const inviteReward = db.awardInviteReward(
+        req.userId,
+        'first_generate',
+        config.INVITE_FIRST_GENERATE_POINTS,
+        '邀请好友首次生成奖励'
+      );
+      if (inviteReward.ok) {
+        console.log(`[邀请奖励] 邀请者:${inviteReward.inviterUserId} 被邀请者:${req.userId}`);
+      }
+    }
     
     res.json({
       code: 0,
       data: {
-        images: imagePaths.map((url, i) => ({ index: i, url })),
+        images: imagePaths.map((path, i) => ({ index: i, url: `/image/${imageId}?index=${i}&token=${req.token}`, localPath: path })),
         points: newPoints,
         imageId
       }
@@ -237,7 +248,8 @@ router.post('/image', async (req, res) => {
     res.status(500).json({ code: 500, message: '生成失败，请稍后重试' });
   } finally {
     if (shouldCleanupTemp && referenceImagePath) {
-      try { await fs.unlink(referenceImagePath); } catch (cleanupErr) {}
+      try { await fs.unlink(referenceImagePath); } catch {
+      }
     }
   }
 });
@@ -254,8 +266,8 @@ router.get('/history', async (req, res) => {
     prompt: img.prompt,
     width: img.width,
     height: img.height,
-    imagePaths: img.image_paths,
-    thumbUrl: `/api/generate/image/${img.id}?thumb=1`,
+    imagePaths: img.image_paths.map((_, i) => `/image/${img.id}?index=${i}&token=${req.token}`),
+    thumbUrl: `/thumb/${img.id}?token=${req.token}`,
     createdAt: img.created_at
   }));
   
@@ -263,58 +275,38 @@ router.get('/history', async (req, res) => {
   res.json({ code: 0, data });
 });
 
-// 获取图片文件（用于前端请求）
-router.get('/image/:id', async (req, res) => {
-  try {
-    const imageId = parseInt(req.params.id);
-    if (!imageId) {
-      return res.status(400).json({ code: 400, message: '无效的图片ID' });
-    }
-
-    const image = db.getImageById(imageId);
-    if (!image) {
-      return res.status(404).json({ code: 404, message: '图片不存在' });
-    }
-
-    if (image.user_id !== req.userId) {
-      const user = db.getUserById(req.userId);
-      if (!user || !user.is_admin) {
-        return res.status(403).json({ code: 403, message: '无权访问' });
-      }
-    }
-
-    const index = parseInt(req.query.index) || 0;
-    const imagePath = image.image_paths[index];
-
-    if (!imagePath) {
-      return res.status(404).json({ code: 404, message: '图片不存在' });
-    }
-
-  const fullPath = path.resolve(uploadsRoot, imagePath.replace(/^\/uploads\//, ''));
-  if (!fullPath.startsWith(uploadsRoot + path.sep)) {
-    return res.status(403).json({ code: 403, message: '非法图片路径' });
-  }
-  try { await fs.stat(fullPath); } catch { return res.status(404).json({ code: 404, message: '图片文件不存在' }); }
-
-  // 缩略图模式：?thumb=1 返回 300px 宽的 JPEG
-  if (req.query.thumb === '1') {
-    const thumbBuffer = await sharp(fullPath)
-      .resize(300, 300, { fit: 'inside', withoutEnlargement: true })
-      .jpeg({ quality: 70 })
-      .toBuffer();
-    res.set('Content-Type', 'image/jpeg');
-    res.set('Cache-Control', 'public, max-age=604800');
-    return res.send(thumbBuffer);
+router.get('/history/:id', async (req, res) => {
+  const imageId = parseInt(req.params.id, 10);
+  if (!imageId) {
+    return res.status(400).json({ code: 400, message: '无效的图片ID' });
   }
 
-  res.set('Content-Type', 'image/png');
-  res.set('Cache-Control', 'public, max-age=86400');
-  const data = await fs.readFile(fullPath);
-  res.send(data);
-  } catch (err) {
-    console.error('[获取图片错误]', err);
-    res.status(500).json({ code: 500, message: '获取图片失败' });
+  const image = db.getImageById(imageId);
+  if (!image) {
+    return res.status(404).json({ code: 404, message: '图片不存在' });
   }
+
+  if (image.user_id !== req.userId) {
+    const user = db.getUserById(req.userId);
+    if (!user || !user.is_admin) {
+      return res.status(403).json({ code: 403, message: '无权访问' });
+    }
+  }
+
+  res.set('Cache-Control', 'no-store');
+  res.json({
+    code: 0,
+    data: {
+      id: image.id,
+      scene: image.scene,
+      prompt: image.prompt,
+      width: image.width,
+      height: image.height,
+      imagePaths: image.image_paths.map((_, i) => `/image/${image.id}?index=${i}&token=${req.token}`),
+      thumbUrl: `/thumb/${image.id}?token=${req.token}`,
+      createdAt: image.created_at
+    }
+  });
 });
 
 module.exports = router;

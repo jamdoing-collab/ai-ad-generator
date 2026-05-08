@@ -3,10 +3,11 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const config = require('../config');
 const db = require('../database');
+const { validatePassword } = require('../validators/password');
 
 const router = express.Router();
 
-// 按用户名的登录限速（防暴力破解）
+// 按用户名的登录限速（内存态；单进程生效，重启后清零）
 const loginAttempts = new Map();
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const LOGIN_MAX_ATTEMPTS = 5;
@@ -37,7 +38,7 @@ setInterval(() => {
 // 注册
 router.post('/register', async (req, res) => {
   try {
-  const { username, password } = req.body;
+  const { username, password, inviteCode } = req.body;
 
   if (!username || !password) {
     return res.status(400).json({ code: 400, message: '用户名和密码不能为空' });
@@ -50,11 +51,9 @@ router.post('/register', async (req, res) => {
   if (!/^[a-zA-Z0-9_\u4e00-\u9fa5]+$/.test(normalizedUsername)) {
     return res.status(400).json({ code: 400, message: '用户名只允许中文、字母、数字和下划线' });
   }
-  if (password.length < 6 || password.length > 64) {
-    return res.status(400).json({ code: 400, message: '密码长度需在6-64个字符之间' });
-  }
-  if (!/(?=.*[a-zA-Z])(?=.*\d)/.test(password)) {
-    return res.status(400).json({ code: 400, message: '密码需同时包含字母和数字' });
+  const passwordError = validatePassword(password);
+  if (passwordError) {
+    return res.status(400).json({ code: 400, message: passwordError });
   }
 
   // 检查用户是否已存在
@@ -63,10 +62,23 @@ router.post('/register', async (req, res) => {
     return res.status(409).json({ code: 409, message: '用户名已存在' });
   }
 
+  let inviter = null;
+  const normalizedInviteCode = String(inviteCode || '').trim();
+  if (normalizedInviteCode) {
+    inviter = db.getUserByInviteCode(normalizedInviteCode);
+  }
+
   // 创建用户
   const hashedPassword = await bcrypt.hash(password, 10);
-  const user = db.createUser(normalizedUsername, hashedPassword, { points: config.NEW_USER_POINTS });
+  const inviteBonus = inviter ? config.INVITE_NEW_USER_POINTS : 0;
+  const user = db.createUser(normalizedUsername, hashedPassword, {
+    points: config.NEW_USER_POINTS + inviteBonus,
+    referredByUserId: inviter?.id
+  });
   db.logPointChange(user.id, 'gift', config.NEW_USER_POINTS, '新用户礼包');
+  if (inviteBonus > 0) {
+    db.logPointChange(user.id, 'invite_new_user_bonus', inviteBonus, '通过邀请注册奖励');
+  }
 
   const token = jwt.sign(
     { userId: user.id },

@@ -18,6 +18,7 @@ const MATERIALS = [
   { key: 'menu', name: '餐饮菜单', icon: '🍜', desc: 'Restaurant menu page.', defaultW: 21, defaultH: 30 },
   { key: 'rollup', name: '易拉宝', icon: '🎞️', desc: 'Roll-up display banner.', defaultW: 80, defaultH: 200 },
   { key: 'wall', name: '文化墙', icon: '🏢', desc: 'Corporate culture wall mural.', defaultW: 300, defaultH: 150 },
+  { key: 'brochure', name: '宣传册封面', icon: '📒', desc: 'Product brochure front cover and back cover spread, no spine, A3 landscape format, professional editorial design, clean luxury style.', defaultW: 42, defaultH: 29 },
   { key: 'flyer', name: '宣传单页', icon: '📄', desc: 'Promotional flyer.', defaultW: 21, defaultH: 30 },
   { key: 'ecom', name: '电商主图', icon: '🛒', desc: 'E-commerce product main image.', defaultW: 1024, defaultH: 1024, unit: 'px' },
   { key: 'moment', name: '朋友圈配图', icon: '📱', desc: 'WeChat Moments share image.', defaultW: 1024, defaultH: 1024, unit: 'px' },
@@ -255,7 +256,7 @@ async function generateImage(options) {
           'Authorization': `Bearer ${apiKey}`,
         },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(150000),
+        signal: AbortSignal.timeout(600000),
       });
 
       if (!res.ok) {
@@ -332,7 +333,7 @@ async function generateImage(options) {
 
 // 轮询获取结果（自适应间隔：前10秒1秒轮询，之后2秒）
 async function pollResult(baseURL, apiKey, taskId) {
-  const deadline = Date.now() + 180000;
+  const deadline = Date.now() + 600000;
   const fastEnd = Date.now() + 10000;
   while (Date.now() < deadline) {
     const interval = Date.now() < fastEnd ? 1000 : 2000;
