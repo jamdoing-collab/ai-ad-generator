@@ -235,6 +235,15 @@ async function loadMaterials() {
 
 async function init() {
   captureInviteCode();
+  const shareId = getShareImageId();
+  if (shareId) {
+    showPage('historyDetail');
+    setDetailActionsVisible(false);
+    $('historyDetailPageTitle').textContent = '作品详情';
+    $('historyDetailScene').textContent = '加载中...';
+    $('historyDetailSize').textContent = '加载中...';
+    $('historyDetailDate').textContent = '加载中...';
+  }
   await loadMaterials();
   renderMaterials();
   renderUploadedImages();
