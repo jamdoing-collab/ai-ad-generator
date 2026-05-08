@@ -5,6 +5,7 @@ const bcrypt = require('bcryptjs');
 const db = require('../database');
 const admin = require('../middleware/admin');
 const { validatePassword } = require('../validators/password');
+const { normalizePhone, validatePhone } = require('../validators/phone');
 
 const router = express.Router();
 
@@ -99,7 +100,13 @@ router.post('/users', async (req, res) => {
     return res.status(400).json({ code: 400, message: passwordError });
   }
 
-  if (db.getUserByUsername(username)) {
+  const normalizedUsername = normalizePhone(username);
+  const phoneError = validatePhone(normalizedUsername);
+  if (phoneError) {
+    return res.status(400).json({ code: 400, message: phoneError });
+  }
+
+  if (db.getUserByUsername(normalizedUsername)) {
     return res.status(409).json({ code: 409, message: '用户名已存在' });
   }
 
@@ -109,7 +116,7 @@ router.post('/users', async (req, res) => {
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);
-  const user = db.createUser(username.trim(), hashedPassword, {
+  const user = db.createUser(normalizedUsername, hashedPassword, {
     points: parsedPoints,
     isAdmin: Boolean(is_admin)
   });

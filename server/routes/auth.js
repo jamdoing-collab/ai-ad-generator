@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const config = require('../config');
 const db = require('../database');
 const { validatePassword } = require('../validators/password');
+const { normalizePhone, validatePhone } = require('../validators/phone');
 
 const router = express.Router();
 
@@ -44,12 +45,10 @@ router.post('/register', async (req, res) => {
     return res.status(400).json({ code: 400, message: '用户名和密码不能为空' });
   }
 
-  const normalizedUsername = username.trim();
-  if (normalizedUsername.length < 2 || normalizedUsername.length > 32) {
-    return res.status(400).json({ code: 400, message: '用户名长度需在2-32个字符之间' });
-  }
-  if (!/^[a-zA-Z0-9_\u4e00-\u9fa5]+$/.test(normalizedUsername)) {
-    return res.status(400).json({ code: 400, message: '用户名只允许中文、字母、数字和下划线' });
+  const normalizedUsername = normalizePhone(username);
+  const phoneError = validatePhone(normalizedUsername);
+  if (phoneError) {
+    return res.status(400).json({ code: 400, message: phoneError });
   }
   const passwordError = validatePassword(password);
   if (passwordError) {
@@ -112,13 +111,14 @@ router.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
 
-if (!username || !password) {
-        return res.status(400).json({ code: 400, message: '用户名和密码不能为空' });
+    if (!username || !password) {
+      return res.status(400).json({ code: 400, message: '用户名和密码不能为空' });
     }
 
-    const normalizedUsername = username.trim();
-    if (normalizedUsername.length < 2 || normalizedUsername.length > 32) {
-        return res.status(400).json({ code: 400, message: '用户名长度需在2-32个字符之间' });
+    const normalizedUsername = normalizePhone(username);
+    const phoneError = validatePhone(normalizedUsername);
+    if (phoneError) {
+      return res.status(400).json({ code: 400, message: phoneError });
     }
     if (password.length > 64) {
         return res.status(400).json({ code: 400, message: '密码长度超出限制' });
@@ -130,11 +130,11 @@ if (!username || !password) {
     }
 
     // 查找用户
-  const user = db.getUserByUsername(normalizedUsername);
-  if (!user) {
-    await bcrypt.compare(password, '$2a$10$invalidhashfortimingonly000000000000000000000000000000');
-    return res.status(401).json({ code: 401, message: '用户名或密码错误' });
-  }
+    const user = db.getUserByUsername(normalizedUsername);
+    if (!user) {
+      await bcrypt.compare(password, '$2a$10$invalidhashfortimingonly000000000000000000000000000000');
+      return res.status(401).json({ code: 401, message: '用户名或密码错误' });
+    }
 
     // 验证密码
     const valid = await bcrypt.compare(password, user.password);
@@ -148,15 +148,15 @@ if (!username || !password) {
     // 使该用户的所有旧session失效，防止session固定攻击
     db.deleteSessionByUserId(user.id);
     
-  // 生成 token
-  const token = jwt.sign(
-    { userId: user.id },
-    config.JWT_SECRET,
-    { expiresIn: config.JWT_EXPIRES_IN }
-  );
+    // 生成 token
+    const token = jwt.sign(
+      { userId: user.id },
+      config.JWT_SECRET,
+      { expiresIn: config.JWT_EXPIRES_IN }
+    );
 
-  // 保存 session
-  db.createSession(user.id, token);
+    // 保存 session
+    db.createSession(user.id, token);
 
   res.json({
     code: 0,
@@ -170,7 +170,7 @@ if (!username || !password) {
       }
     }
   });
- } catch (err) {
+  } catch (err) {
     console.error('[登录错误]', err);
     res.status(500).json({ code: 500, message: '登录失败' });
   }

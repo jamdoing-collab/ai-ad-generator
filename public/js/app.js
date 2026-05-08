@@ -849,6 +849,12 @@ function setLoginModalMode(mode) {
   $('loginModalTitle').textContent = isRegister ? '注册' : '登录';
   $('modalLoginBtn').textContent = isRegister ? '注册' : '登录';
   $('loginSwitchBtn').textContent = isRegister ? '已有账号？去登录' : '没有账号？去注册';
+  if ($('modalLoginUsername')) {
+    $('modalLoginUsername').placeholder = '请输入手机号码';
+  }
+  if ($('modalLoginPassword')) {
+    $('modalLoginPassword').placeholder = isRegister ? '请输入6位以上数字' : '请输入密码';
+  }
   setDisplay('inviteRegisterHint', isRegister && pendingInviteCode ? 'block' : 'none');
 }
 

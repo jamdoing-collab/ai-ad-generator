@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../database');
+const { normalizePhone, validatePhone } = require('../validators/phone');
 
 const router = express.Router();
 
@@ -50,12 +51,10 @@ router.put('/info', (req, res) => {
     const normalizedUpdate = { ...updateData };
 
     if (Object.prototype.hasOwnProperty.call(updateData, 'username')) {
-      const newUsername = String(updateData.username || '').trim();
-      if (newUsername.length < 2 || newUsername.length > 32) {
-        return res.status(400).json({ code: 400, message: '用户名长度需在2-32个字符之间' });
-      }
-      if (!/^[a-zA-Z0-9_\u4e00-\u9fa5]+$/.test(newUsername)) {
-        return res.status(400).json({ code: 400, message: '用户名只允许中文、字母、数字和下划线' });
+      const newUsername = normalizePhone(updateData.username);
+      const phoneError = validatePhone(newUsername);
+      if (phoneError) {
+        return res.status(400).json({ code: 400, message: phoneError });
       }
       const existing = db.getUserByUsername(newUsername);
       if (existing && existing.id !== req.userId) {

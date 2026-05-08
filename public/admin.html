@@ -164,21 +164,29 @@
       align-items: center;
       justify-content: space-between;
       gap: 12px;
+      flex-wrap: wrap;
       padding: 20px 22px;
       border-bottom: 1px solid var(--border);
     }
     .panel-title { font-size: 18px; font-weight: 700; }
-    .toolbar { display: flex; gap: 12px; }
+    .toolbar { display: flex; gap: 12px; flex-wrap: wrap; }
     .input {
       min-width: 220px;
       padding: 11px 14px;
       background: #fff;
     }
 
-    table { width: 100%; border-collapse: collapse; }
+    table { width: 100%; min-width: 860px; border-collapse: collapse; table-layout: fixed; }
     th, td { padding: 16px 22px; text-align: left; border-bottom: 1px solid rgba(104, 76, 43, 0.08); }
     th { color: var(--text-soft); font-size: 12px; font-weight: 600; }
     td { font-size: 14px; vertical-align: top; }
+    th:nth-child(1), td:nth-child(1) { width: 26%; }
+    th:nth-child(2), td:nth-child(2) { width: 12%; }
+    th:nth-child(3), td:nth-child(3) { width: 16%; }
+    th:nth-child(4), td:nth-child(4) { width: 24%; }
+    th:nth-child(5), td:nth-child(5) { width: 22%; }
+    td:first-child { word-break: break-all; }
+    td:nth-child(4) { white-space: nowrap; }
 
     .badge {
       display: inline-flex;
@@ -189,7 +197,10 @@
       font-weight: 600;
     }
     .badge-admin { background: rgba(196, 104, 44, 0.12); color: var(--primary-deep); }
-    .actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: nowrap; }
+    .table-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .table-scroll table td:last-child,
+    .table-scroll table th:last-child { text-align: right; }
     .empty { padding: 28px; text-align: center; color: var(--text-soft); }
     .message { margin-bottom: 16px; padding: 14px 16px; border-radius: 16px; font-size: 14px; }
     .message.error { background: rgba(217, 72, 95, 0.1); color: var(--danger); }
@@ -275,7 +286,7 @@
     <div id="authMessage" class="message error hidden"></div>
     <form id="loginForm">
       <div class="form-group">
-        <label for="username">用户名</label>
+        <label for="username">手机号</label>
         <input class="input" id="username" type="text" autocomplete="username" required>
       </div>
       <div class="form-group">
@@ -343,10 +354,10 @@
         <div class="page-title">用户管理</div>
         <div class="card">
           <div class="panel-header">
-            <div class="panel-title">用户列表</div>
+            <div class="panel-title">账号列表</div>
             <div class="toolbar">
-              <input class="input" id="searchInput" type="search" placeholder="搜索用户名">
-              <button class="btn btn-primary" id="createUserBtn" type="button">新建用户</button>
+              <input class="input" id="searchInput" type="search" placeholder="搜索手机号">
+              <button class="btn btn-primary" id="createUserBtn" type="button">新建账号</button>
             </div>
           </div>
           <div class="table-scroll">
@@ -363,7 +374,7 @@
               <tbody id="userTableBody"></tbody>
             </table>
           </div>
-          <div id="emptyState" class="empty hidden">没有匹配到用户</div>
+          <div id="emptyState" class="empty hidden">没有匹配到账号</div>
         </div>
       </div>
 
@@ -418,11 +429,11 @@
 <!-- 用户编辑弹窗 -->
 <div class="modal" id="userModal">
   <div class="modal-card card">
-    <h2 class="modal-title" id="modalTitle">新建用户</h2>
+    <h2 class="modal-title" id="modalTitle">新建账号</h2>
     <form id="userForm">
       <input id="editUserId" type="hidden">
       <div class="form-group">
-        <label for="editUsername">用户名</label>
+        <label for="editUsername">手机号</label>
         <input class="input" id="editUsername" type="text" required>
       </div>
       <div class="form-group">
@@ -662,7 +673,7 @@ function openModal(user = null) {
   if ($('editIsAdmin')) $('editIsAdmin').checked = Boolean(user && user.is_admin);
   if ($('editUsername')) $('editUsername').disabled = Boolean(user);
   if ($('editPassword')) $('editPassword').placeholder = user ? '留空表示不修改密码' : '请输入登录密码';
-  setText('modalTitle', user ? '编辑用户' : '新建用户');
+    setText('modalTitle', user ? '编辑账号' : '新建账号');
   addClass('userModal', 'open');
 }
 
