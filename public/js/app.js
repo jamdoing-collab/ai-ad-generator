@@ -813,6 +813,9 @@ async function regenerateCurrentDetail(mode) {
 
       if (mode === 'history') {
         $('historyDetailImg').src = currentResultImages[0];
+        waitForImageLoad(currentResultImages[0]).catch(() => {
+          showToast('修改成功，但结果图片加载失败，请稍后重试查看历史记录');
+        });
       } else {
         showResultImage(0);
       }
@@ -1239,6 +1242,9 @@ function loadHistoryDetail(item) {
   renderResultDetailMeta();
   window.location.hash = `history-${item.id}`;
   showPage('historyDetail');
+  waitForImageLoad(fullUrl).catch(() => {
+    showToast('历史详情已打开，但图片加载失败，请稍后重试');
+  });
 }
 
 function showConfirm(message, onOk) {
