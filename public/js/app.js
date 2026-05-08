@@ -638,6 +638,15 @@ function showResultImage(index) {
   renderResultDetailMeta();
 }
 
+function waitForImageLoad(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(true);
+    img.onerror = () => reject(new Error('结果图片加载失败'));
+    img.src = url;
+  });
+}
+
 function updateTweakCost() {
   if ($('modifyCost')) $('modifyCost').textContent = getCurrentCost();
 }
@@ -726,6 +735,7 @@ async function startGenerate() {
         points: res.data.points,
         mode: 'result'
       });
+      await waitForImageLoad(currentResultImages[0]);
       $('loadingWrap').style.display = 'none';
       $('resultWrap').style.display = 'flex';
       showResultImage(0);
@@ -746,7 +756,7 @@ async function startGenerate() {
     } else {
       $('loadingWrap').style.display = 'none';
       $('errorState').style.display = 'flex';
-      $('errorMsg').textContent = err.message || '生成失败';
+      $('errorMsg').textContent = err.message || '生成结果返回异常，请稍后重试';
     }
   } finally {
     isGenerating = false;

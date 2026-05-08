@@ -42,6 +42,7 @@ module.exports = [
         AbortSignal: 'readonly',
         AbortController: 'readonly',
         FileReader: 'readonly',
+        Image: 'readonly',
         window: 'readonly',
         document: 'readonly',
         navigator: 'readonly',
