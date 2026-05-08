@@ -116,9 +116,9 @@ router.post('/login', async (req, res) => {
     }
 
     const normalizedUsername = normalizePhone(username);
-    const phoneError = validatePhone(normalizedUsername);
-    if (phoneError) {
-      return res.status(400).json({ code: 400, message: phoneError });
+    const isPhoneLogin = /^1\d{10}$/.test(normalizedUsername);
+    if (!isPhoneLogin && normalizedUsername.length < 2) {
+      return res.status(400).json({ code: 400, message: '用户名长度需在2个字符以上' });
     }
     if (password.length > 64) {
         return res.status(400).json({ code: 400, message: '密码长度超出限制' });
@@ -129,7 +129,7 @@ router.post('/login', async (req, res) => {
       return res.status(429).json({ code: 429, message: '登录尝试过于频繁，请15分钟后再试' });
     }
 
-    // 查找用户
+    // 查找用户：手机号优先，兼容旧管理员账号（如 jamdo）
     const user = db.getUserByUsername(normalizedUsername);
     if (!user) {
       await bcrypt.compare(password, '$2a$10$invalidhashfortimingonly000000000000000000000000000000');

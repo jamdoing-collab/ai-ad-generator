@@ -870,7 +870,7 @@ function hideLoginModal() {
 }
 
 async function doLogin(username, password, options = {}) {
-  if (!username || !password) { alert('请输入用户名和密码'); return; }
+  if (!username || !password) { alert('请输入手机号和密码'); return; }
 
   const isRegister = $('loginModalTitle').textContent === '注册';
   const endpoint = isRegister ? '/auth/register' : '/auth/login';
