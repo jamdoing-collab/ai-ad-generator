@@ -8,13 +8,23 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
   .map(o => o.trim())
   .filter(Boolean);
 
+const inferredPublicOrigin = process.env.RAILWAY_PUBLIC_DOMAIN
+  ? `https://${String(process.env.RAILWAY_PUBLIC_DOMAIN).replace(/^https?:\/\//, '').replace(/\/+$/, '')}`
+  : '';
+
+const finalAllowedOrigins = Array.from(new Set([
+  ...allowedOrigins,
+  (process.env.PUBLIC_BASE_URL || '').replace(/\/+$/, ''),
+  inferredPublicOrigin
+].filter(Boolean)));
+
 module.exports = {
   // 服务器配置
   PORT: process.env.PORT || 3000,
   NODE_ENV: process.env.NODE_ENV || 'development',
   
   // CORS 配置
-  ALLOWED_ORIGINS: allowedOrigins,
+  ALLOWED_ORIGINS: finalAllowedOrigins,
   
   // OpenAI 配置
   OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
