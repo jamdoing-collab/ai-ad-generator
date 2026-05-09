@@ -29,6 +29,7 @@ let currentResultWidth = null;
 let currentResultHeight = null;
 let currentResultQuality = 'default';
 let currentDetailMode = 'result';
+let detailReturnTarget = 'generate';
 let resultSourcePage = 'generate';
 let selectedPackageIndex = 0;
 let packages = [];
@@ -104,7 +105,7 @@ function renderResultDetailMeta() {
   setText('resultDetailSize', size);
 }
 
-function applyHistoryDetailView(item, { canEdit = false, title = '作品详情' } = {}) {
+function applyHistoryDetailView(item, { canEdit = false, title = '详情' } = {}) {
   const fullUrl = item.imagePaths?.[0] || '';
   const sceneName = MATERIALS.find(m => m.key === item.scene)?.name || item.scene;
   const width = item.width || 0;
@@ -287,7 +288,7 @@ async function init() {
   if (shareId) {
     showPage('historyDetail');
     setDetailActionsVisible(false);
-    $('historyDetailPageTitle').textContent = '作品详情';
+  $('historyDetailPageTitle').textContent = '详情';
     $('historyDetailScene').textContent = '加载中...';
     $('historyDetailSize').textContent = '加载中...';
     $('historyDetailDate').textContent = '加载中...';
@@ -488,7 +489,7 @@ function bindMobileEvents() {
       return;
     }
     if (window.location.hash.startsWith('#history-')) history.replaceState(null, '', window.location.pathname + window.location.search);
-    showPage('history');
+    showPage(detailReturnTarget);
   });
   $('historyDetailSaveBtn').addEventListener('click', downloadImage);
   $('historyDetailModifyBtn').addEventListener('click', () => openModifyModal('history'));
@@ -818,7 +819,8 @@ async function startGenerate() {
       };
       $('loadingWrap').style.display = 'none';
       updateMineDisplay();
-      loadHistoryDetail(item);
+      detailReturnTarget = 'generate';
+      applyHistoryDetailView(item, { canEdit: true, title: '详情' });
       window.location.hash = `history-${currentResultImageId}`;
     } else {
       const msg = res.code === 503
@@ -973,7 +975,7 @@ async function loadHistoryDetailById(imageId) {
     showToast(res.message || '历史详情加载失败');
     return;
   }
-  applyHistoryDetailView(res.data, { canEdit: true, title: '作品详情' });
+  applyHistoryDetailView(res.data, { canEdit: true, title: '详情' });
 }
 
 async function loadPublicDetailById(imageId) {
@@ -985,8 +987,9 @@ async function loadPublicDetailById(imageId) {
 
   const item = res.data;
   const canEdit = Boolean(userInfo && item.ownerUserId === userInfo.id);
+  detailReturnTarget = 'generate';
 
-  applyHistoryDetailView(item, { canEdit, title: '作品详情' });
+  applyHistoryDetailView(item, { canEdit, title: '详情' });
 }
 
 function setLoginModalMode(mode) {
@@ -1284,6 +1287,7 @@ async function loadMoreHistory(listEl) {
 }
 
 async function loadHistory() {
+  detailReturnTarget = 'history';
   showPage('history');
   const list = $('historyList');
   if (!list) return;
@@ -1327,7 +1331,8 @@ async function loadHistory() {
 }
 
 function loadHistoryDetail(item) {
-  applyHistoryDetailView(item, { canEdit: true, title: '作品详情' });
+  detailReturnTarget = 'history';
+  applyHistoryDetailView(item, { canEdit: true, title: '详情' });
   window.location.hash = `history-${item.id}`;
 }
 
