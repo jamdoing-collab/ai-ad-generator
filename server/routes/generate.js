@@ -117,6 +117,22 @@ async function validateImageFormat(filePath) {
   }
 }
 
+async function downloadReferenceImageToTemp(url) {
+  const res = await fetch(url, { signal: AbortSignal.timeout(60000) });
+  if (!res.ok) throw new Error(`下载参考图失败: HTTP ${res.status}`);
+  const arrayBuffer = await res.arrayBuffer();
+  if (arrayBuffer.byteLength > MAX_REFERENCE_IMAGE_BYTES) {
+    throw new Error('参考图大小不能超过10MB');
+  }
+
+  const tempPath = path.join(__dirname, '../../uploads/temp', `ref_${Date.now()}_${uuidv4().slice(0, 6)}.png`);
+  const tempDir = path.dirname(tempPath);
+  await fs.mkdir(tempDir, { recursive: true });
+  await fs.writeFile(tempPath, Buffer.from(arrayBuffer));
+  await validateImageFormat(tempPath);
+  return tempPath;
+}
+
 function resolveUploadPath(uploadPath) {
   const normalizedPath = path.normalize(uploadPath).replace(/^(\.\.[\/\\])+/, '');
   const resolvedPath = path.resolve(uploadsRoot, normalizedPath);
@@ -250,6 +266,14 @@ router.post('/image', async (req, res) => {
         await validateImageFormat(resolved);
         console.log(`[生成请求:${requestId}] 参考图文件格式校验成功 path=${resolved}`);
         referenceImagePaths.push(resolved);
+      } else if (ref.startsWith('/image/') || ref.startsWith('/share/image/') || /^https?:\/\//.test(ref)) {
+        const absoluteUrl = /^https?:\/\//.test(ref)
+          ? ref
+          : `${config.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`}${ref}`;
+        const tempPath = await downloadReferenceImageToTemp(absoluteUrl);
+        console.log(`[生成请求:${requestId}] 参考图 URL 下载并校验成功 path=${tempPath}`);
+        referenceImagePaths.push(tempPath);
+        tempReferenceImagePaths.push(tempPath);
       } else {
         console.error(`[生成请求:${requestId}] 参考图格式不支持 value=${String(ref).slice(0, 120)}`);
         throw new Error('不支持的参考图格式');
