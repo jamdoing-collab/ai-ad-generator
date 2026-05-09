@@ -143,11 +143,18 @@ CREATE TABLE IF NOT EXISTS users (
     prompt TEXT NOT NULL,
     width INTEGER NOT NULL,
     height INTEGER NOT NULL,
+    quality TEXT DEFAULT 'default',
     image_paths TEXT,
     created_at TEXT DEFAULT (datetime('now')),
     FOREIGN KEY (user_id) REFERENCES users(id)
   )
   `);
+
+  const imageColumns = getTableColumns('images');
+  if (!imageColumns.has('quality')) {
+    db.run("ALTER TABLE images ADD COLUMN quality TEXT DEFAULT 'default'");
+    db.run("UPDATE images SET quality = 'default' WHERE quality IS NULL OR quality = ''");
+  }
   
   db.run(`
     CREATE TABLE IF NOT EXISTS point_changes (
@@ -626,10 +633,10 @@ function getPointHistory(userId, limit = 20) {
   return results;
 }
 
-function saveImage(userId, scene, prompt, width, height, imagePaths) {
+function saveImage(userId, scene, prompt, width, height, imagePaths, quality = 'default') {
   try {
-    db.run('INSERT INTO images (user_id, scene, prompt, width, height, image_paths) VALUES (?, ?, ?, ?, ?, ?)',
-      [userId, scene, prompt, width, height, JSON.stringify(imagePaths)]);
+    db.run('INSERT INTO images (user_id, scene, prompt, width, height, quality, image_paths) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [userId, scene, prompt, width, height, quality, JSON.stringify(imagePaths)]);
     const result = db.exec('SELECT last_insert_rowid() as id');
     const id = result[0]?.values[0]?.[0] || 0;
     saveDatabase();

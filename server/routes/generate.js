@@ -67,6 +67,7 @@ function formatImageDetail(image, { imageUrlBuilder, thumbUrl, includeOwnerUserI
     prompt: image.prompt,
     width: image.width,
     height: image.height,
+    quality: image.quality || 'default',
     imagePaths: image.image_paths.map((_, i) => imageUrlBuilder(image.id, i)),
     thumbUrl,
     createdAt: image.created_at
@@ -266,7 +267,7 @@ router.post('/image', async (req, res) => {
     // 保存到数据库
     let imageId;
     try {
-      imageId = db.saveImage(req.userId, scene, text.trim(), parsedWidth, parsedHeight, imagePaths);
+      imageId = db.saveImage(req.userId, scene, text.trim(), parsedWidth, parsedHeight, imagePaths, qualityLevel);
     } catch (saveErr) {
       console.error(`[生成请求:${requestId}] 保存图片记录失败`, saveErr.message);
       for (const p of imagePaths) {

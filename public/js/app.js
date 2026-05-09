@@ -27,6 +27,7 @@ let currentResultScene = null;
 let currentResultText = null;
 let currentResultWidth = null;
 let currentResultHeight = null;
+let currentResultQuality = 'default';
 let currentDetailMode = 'result';
 let resultSourcePage = 'generate';
 let selectedPackageIndex = 0;
@@ -123,6 +124,7 @@ function applyHistoryDetailView(item, { canEdit = false, title = '作品详情' 
     text: item.prompt,
     width,
     height,
+    quality: item.quality || 'default',
     images: [{ url: fullUrl, localPath: fullUrl }],
     imageId: item.id,
     points: userInfo?.points ?? 0,
@@ -141,11 +143,12 @@ function applyHistoryDetailView(item, { canEdit = false, title = '作品详情' 
   }
 }
 
-function applyDetailResult({ scene, text, width, height, images, imageId, points, mode }) {
+function applyDetailResult({ scene, text, width, height, quality = 'default', images, imageId, points, mode }) {
   currentResultScene = scene;
   currentResultText = text;
   currentResultWidth = width;
   currentResultHeight = height;
+  currentResultQuality = quality;
   currentResultImages = images.map(img => img.url);
   currentResultImagesPath = images.map(img => img.localPath || '');
   currentResultImageId = imageId || currentResultImageId;
@@ -795,6 +798,7 @@ async function startGenerate() {
         text,
         width,
         height,
+        quality: selectedQuality,
         images: res.data.images,
         imageId: res.data.imageId || null,
         points: res.data.points,
@@ -861,7 +865,7 @@ async function regenerateCurrentDetail(mode) {
         text: currentResultText,
         width: currentResultWidth,
         height: currentResultHeight,
-        quality: selectedQuality,
+        quality: currentResultQuality,
         referenceImage: refSrc,
         feedback: feedback || null
       })
@@ -875,6 +879,7 @@ async function regenerateCurrentDetail(mode) {
         text: currentResultText,
         width: currentResultWidth,
         height: currentResultHeight,
+        quality: currentResultQuality,
         images: res.data.images,
         imageId: res.data.imageId || currentResultImageId,
         points: res.data.points,
