@@ -81,13 +81,14 @@ function formatImageDetail(image, { imageUrlBuilder, thumbUrl, includeOwnerUserI
   return detail;
 }
 
-function buildGenerateResponse({ imageId, imagePaths, points, token }) {
+function buildGenerateResponse({ imageId, imagePaths, points, token, createdAt = '' }) {
   return {
     code: 0,
     data: {
       images: imagePaths.map((path, i) => ({ index: i, url: `/image/${imageId}?index=${i}&token=${token}`, localPath: path })),
       points,
-      imageId
+      imageId,
+      createdAt
     }
   };
 }
@@ -319,8 +320,10 @@ router.post('/image', generateRateLimit, async (req, res) => {
 
     // 保存到数据库
     let imageId;
+    let savedImage;
     try {
       imageId = db.saveImage(req.userId, scene, text.trim(), parsedWidth, parsedHeight, imagePaths, qualityLevel);
+      savedImage = db.getImageById(imageId);
     } catch (saveErr) {
       console.error(`[生成请求:${requestId}] 保存图片记录失败`, saveErr.message);
       for (const p of imagePaths) {
@@ -348,7 +351,8 @@ router.post('/image', generateRateLimit, async (req, res) => {
       imageId,
       imagePaths,
       points: newPoints,
-      token: req.token
+      token: req.token,
+      createdAt: savedImage?.created_at || ''
     });
 
     recentGenerateResults.set(generateRequestKey, { createdAt: Date.now(), imageId, imagePaths, points: newPoints });
