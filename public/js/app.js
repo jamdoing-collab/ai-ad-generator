@@ -865,6 +865,16 @@ async function regenerateCurrentDetail(mode) {
   isGenerating = true;
   $('modifySubmitBtn').disabled = true;
   $('modifySubmitBtn').textContent = '重新生成中...';
+  closeModifyModal();
+
+  if (mode === 'history') {
+    setDisplay('historyDetailLoading', 'flex');
+    setDisplay('historyDetailWrap', 'none');
+  } else {
+    $('loadingWrap').style.display = 'flex';
+    $('resultWrap').style.display = 'none';
+    $('errorState').style.display = 'none';
+  }
 
   const refSrc = currentResultImagesPath.filter(Boolean).length
     ? currentResultImagesPath.filter(Boolean)
@@ -901,6 +911,8 @@ async function regenerateCurrentDetail(mode) {
       });
 
       if (mode === 'history') {
+        setDisplay('historyDetailLoading', 'none');
+        setDisplay('historyDetailWrap', '');
         $('historyDetailImg').src = currentResultImages[0];
         waitForImageLoad(currentResultImages[0]).catch(() => {
           showToast('修改成功，但结果图片加载失败，请稍后重试查看历史记录');
@@ -909,7 +921,6 @@ async function regenerateCurrentDetail(mode) {
         showResultImage(0);
       }
       updateMineDisplay();
-      closeModifyModal();
       window.location.hash = `${mode}-${currentResultImageId}`;
       showToast('调整完成');
     } else {
@@ -923,11 +934,14 @@ async function regenerateCurrentDetail(mode) {
   } catch (err) {
     if (err.message && err.message.includes('正在生成中')) {
       showToast(err.message);
-      closeModifyModal();
     } else {
       showToast(err.message || '调整失败，请重试');
     }
   } finally {
+    if (mode === 'history') {
+      setDisplay('historyDetailLoading', 'none');
+      setDisplay('historyDetailWrap', '');
+    }
     isGenerating = false;
     $('modifySubmitBtn').disabled = false;
     $('modifySubmitBtn').textContent = '重新生成';
