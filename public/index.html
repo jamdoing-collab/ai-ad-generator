@@ -84,56 +84,6 @@
 </main>
 </div>
 
-<!-- 2. 结果页 -->
-<div class="page" id="pageResult">
-<header class="sub-header">
-  <span class="back-btn" id="resultBackBtn">←</span>
-  <h1>生成结果</h1>
-</header>
-<main class="main">
-  <div class="mobile-result-card">
-    <div class="loading-wrap" id="loadingWrap">
-      <div class="loading-anim"></div>
-      <div class="loading-text" id="loadingText">AI创作中...</div>
-      <div class="loading-sub" id="loadingSub">预计需要15-30秒</div>
-    </div>
-
-    <div class="error-state" id="errorState" style="display: none;">
-      <div class="error-icon">😵</div>
-      <div class="error-title">生成失败</div>
-      <div class="error-desc" id="errorMsg">网络异常，请稍后重试</div>
-      <button class="error-btn" id="retryBtn">重新生成</button>
-    </div>
-
-    <div class="result-wrap" id="resultWrap" style="display: none;">
-      <div class="result-img-area" id="resultImgArea">
-        <img id="resultImg" src="" alt="生成结果">
-      </div>
-      <div class="result-dots" id="resultDots"></div>
-      <div class="detail-meta">
-        <div class="detail-meta-row">
-          <span class="detail-meta-label">物料</span>
-          <span class="detail-meta-value" id="resultDetailScene">-</span>
-        </div>
-        <div class="detail-meta-row">
-          <span class="detail-meta-label">尺寸</span>
-          <span class="detail-meta-value" id="resultDetailSize">-</span>
-        </div>
-        <div class="detail-meta-row">
-          <span class="detail-meta-label">说明</span>
-          <span class="detail-meta-value result-quality-hint">AI 生成图片经放大处理可达印刷标准</span>
-        </div>
-      </div>
-      <div class="detail-actions detail-actions-primary">
-        <button class="btn-action btn-download" id="downloadBtn">保存</button>
-        <button class="btn-action btn-regen" id="modifyBtn">修改</button>
-      </div>
-      <button class="btn-action btn-share detail-share-btn" id="shareBtn">分享</button>
-    </div>
-  </div>
-</main>
-</div>
-
 <!-- 3. 个人中心页 -->
 <div class="page" id="pageMine">
 <header class="sub-header">
@@ -207,35 +157,44 @@
 </header>
 <main class="main">
     <div class="mobile-result-card">
-      <div class="loading-wrap" id="historyDetailLoading" style="display: none;">
+      <div class="loading-wrap" id="loadingWrap" style="display: none;">
         <div class="loading-anim"></div>
-        <div class="loading-text">AI创作中...</div>
-        <div class="loading-sub">正在基于当前作品重新生成</div>
+        <div class="loading-text" id="loadingText">AI创作中...</div>
+        <div class="loading-sub" id="loadingSub">预计需要15-30秒</div>
       </div>
-      <div class="result-wrap" id="historyDetailWrap">
-        <div class="result-img-area" id="historyDetailImgArea">
-          <img id="historyDetailImg" src="" alt="历史图片">
+
+      <div class="error-state" id="errorState" style="display: none;">
+        <div class="error-icon">😵</div>
+        <div class="error-title">生成失败</div>
+        <div class="error-desc" id="errorMsg">网络异常，请稍后重试</div>
+        <button class="error-btn" id="retryBtn">重新生成</button>
+      </div>
+
+      <div class="result-wrap" id="detailWrap" style="display: none;">
+        <div class="result-img-area" id="detailImgArea">
+          <img id="detailImg" src="" alt="详情图片">
         </div>
+        <div class="result-dots" id="resultDots"></div>
         <div class="detail-meta">
           <div class="detail-meta-row">
             <span class="detail-meta-label">物料</span>
-            <span class="detail-meta-value" id="historyDetailScene">-</span>
+            <span class="detail-meta-value" id="detailScene">-</span>
           </div>
           <div class="detail-meta-row">
             <span class="detail-meta-label">尺寸</span>
-            <span class="detail-meta-value" id="historyDetailSize">-</span>
+            <span class="detail-meta-value" id="detailSize">-</span>
           </div>
           <div class="detail-meta-row">
-            <span class="detail-meta-label">生成时间</span>
-            <span class="detail-meta-value" id="historyDetailDate">-</span>
+            <span class="detail-meta-label">说明</span>
+            <span class="detail-meta-value result-quality-hint">AI 生成图片经放大处理可达印刷标准</span>
           </div>
         </div>
         <div class="detail-actions detail-actions-primary">
-          <button class="btn-action btn-download" id="historyDetailSaveBtn">保存</button>
-          <button class="btn-action btn-regen" id="historyDetailModifyBtn">修改</button>
+          <button class="btn-action btn-download" id="detailSaveBtn">保存</button>
+          <button class="btn-action btn-regen" id="detailModifyBtn">修改</button>
         </div>
-        <button class="btn-action btn-share detail-share-btn" id="historyDetailShareBtn">分享</button>
-        <button class="btn-primary detail-login-btn" id="historyDetailLoginBtn" style="display:none">登录 / 注册</button>
+        <button class="btn-action btn-share detail-share-btn" id="detailShareBtn">分享</button>
+        <button class="btn-primary detail-login-btn" id="detailLoginBtn" style="display:none">登录 / 注册</button>
       </div>
     </div>
 </main>

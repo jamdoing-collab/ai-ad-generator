@@ -22,7 +22,6 @@ let currentResultHeight = null;
 let currentResultQuality = 'default';
 let currentDetailMode = 'result';
 let detailReturnTarget = 'generate';
-let resultSourcePage = 'generate';
 let selectedPackageIndex = 0;
 let packages = [];
 let authExpiredNotified = false;
@@ -94,8 +93,8 @@ function renderResultDetailMeta() {
   const sceneName = MATERIALS.find(m => m.key === currentResultScene)?.name || currentResultScene || '-';
   const unit = getCurrentMaterialUnit(currentResultScene);
   const size = currentResultWidth && currentResultHeight ? `${currentResultWidth}×${currentResultHeight}${unit}` : '-';
-  setText('resultDetailScene', sceneName);
-  setText('resultDetailSize', size);
+  setText('detailScene', sceneName);
+  setText('detailSize', size);
 }
 
 function applyHistoryDetailView(item, { canEdit = false, title = '详情' } = {}) {
@@ -105,13 +104,11 @@ function applyHistoryDetailView(item, { canEdit = false, title = '详情' } = {}
   const height = item.height || 0;
   const unit = item.scene && MATERIALS.find(m => m.key === item.scene)?.unit || 'cm';
   const sizeStr = width && height ? `${width}×${height}${unit}` : '-';
-  const dateStr = item.createdAt ? new Date(item.createdAt).toLocaleString('zh-CN') : '-';
 
   $('historyDetailPageTitle').textContent = title;
-  $('historyDetailImg').src = fullUrl;
-  $('historyDetailScene').textContent = sceneName;
-  $('historyDetailSize').textContent = sizeStr;
-  $('historyDetailDate').textContent = dateStr;
+  $('detailImg').src = fullUrl;
+  $('detailScene').textContent = sceneName;
+  $('detailSize').textContent = sizeStr;
 
   const localPaths = (item.localPaths || item.imagePaths || []).map((p, i) => p.startsWith('/uploads/') ? p : (item.imagePaths?.[i] || p));
 
@@ -281,10 +278,9 @@ async function init() {
   if (shareId) {
     showPage('historyDetail');
     setDetailActionsVisible(false);
-  $('historyDetailPageTitle').textContent = '详情';
-    $('historyDetailScene').textContent = '加载中...';
-    $('historyDetailSize').textContent = '加载中...';
-    $('historyDetailDate').textContent = '加载中...';
+    $('historyDetailPageTitle').textContent = '详情';
+    $('detailScene').textContent = '加载中...';
+    $('detailSize').textContent = '加载中...';
   }
   await loadMaterials();
   renderMaterials();
@@ -441,17 +437,13 @@ function bindMobileEvents() {
   $('retryBtn').addEventListener('click', () => {
     showPage('generate');
   });
-  $('downloadBtn').addEventListener('click', downloadImage);
-  $('modifyBtn').addEventListener('click', () => openModifyModal('result'));
-  $('shareBtn').addEventListener('click', () => copyText(getCurrentDetailShareLink(), '详情页链接已复制'));
+  $('detailSaveBtn').addEventListener('click', downloadImage);
+  $('detailModifyBtn').addEventListener('click', () => openModifyModal(currentDetailMode));
+  $('detailShareBtn').addEventListener('click', () => copyText(getCurrentDetailShareLink(), '详情页链接已复制'));
 
   // 全屏图片查看
-  $('resultImg').addEventListener('click', () => {
-    $('fullscreenImg').src = $('resultImg').src;
-    $('fullscreenViewer').style.display = 'flex';
-  });
-  $('historyDetailImg').addEventListener('click', () => {
-    $('fullscreenImg').src = $('historyDetailImg').src;
+  $('detailImg').addEventListener('click', () => {
+    $('fullscreenImg').src = $('detailImg').src;
     $('fullscreenViewer').style.display = 'flex';
   });
   $('fullscreenClose').addEventListener('click', () => {
@@ -460,14 +452,6 @@ function bindMobileEvents() {
   $('fullscreenViewer').addEventListener('click', () => {
     $('fullscreenViewer').style.display = 'none';
   });
-
-  // 生成中禁止返回
-  $('resultBackBtn').addEventListener('click', e => {
-    if (isGenerating) { e.stopPropagation(); showToast('正在生成中，请稍候'); return; }
-    resetForm();
-    if (window.location.hash.startsWith('#result-')) history.replaceState(null, '', window.location.pathname + window.location.search);
-    showPage(resultSourcePage);
-  }, true);
 
   $('mineBackBtn').addEventListener('click', () => showPage('generate'));
   $('historyBackBtn').addEventListener('click', () => showPage('mine'));
@@ -483,18 +467,19 @@ function bindMobileEvents() {
 
   $('historyBtn').addEventListener('click', loadHistory);
   $('historyDetailBackBtn').addEventListener('click', () => {
+    if (isGenerating) { showToast('正在生成中，请稍候'); return; }
     if (getShareImageId()) {
       history.replaceState(null, '', window.location.pathname);
       showPage('generate');
       return;
     }
     if (window.location.hash.startsWith('#history-')) history.replaceState(null, '', window.location.pathname + window.location.search);
+    if (detailReturnTarget === 'generate') {
+      resetForm();
+    }
     showPage(detailReturnTarget);
   });
-  $('historyDetailSaveBtn').addEventListener('click', downloadImage);
-  $('historyDetailModifyBtn').addEventListener('click', () => openModifyModal('history'));
-  $('historyDetailShareBtn').addEventListener('click', () => copyText(getCurrentDetailShareLink(), '详情页链接已复制'));
-  $('historyDetailLoginBtn').addEventListener('click', () => showLoginModal());
+  $('detailLoginBtn').addEventListener('click', () => showLoginModal());
 
   $('contactBtn').addEventListener('click', () => {
     setDisplay('contactModal', 'flex');
@@ -714,7 +699,7 @@ function renderResultDots(container) {
 function showResultImage(index) {
   if (!currentResultImages.length) return;
   currentResultIndex = Math.max(0, Math.min(index, currentResultImages.length - 1));
-  $('resultImg').src = currentResultImages[currentResultIndex];
+  $('detailImg').src = currentResultImages[currentResultIndex];
   renderResultDots($('resultDots'));
   updateTweakCost();
   renderResultDetailMeta();
@@ -779,9 +764,8 @@ async function startGenerate() {
   const width = parseFloat($('sizeWidth').value);
   const height = parseFloat($('sizeHeight').value);
 
-  resultSourcePage = 'generate';
   $('loadingWrap').style.display = 'flex';
-  $('resultWrap').style.display = 'none';
+  $('detailWrap').style.display = 'none';
   $('errorState').style.display = 'none';
   $('genBtn').disabled = true;
   $('genBtn').textContent = '生成中...';
@@ -790,7 +774,7 @@ async function startGenerate() {
   $('loadingText').textContent = msg.text;
   $('loadingSub').textContent = msg.sub;
 
-  showPage('result');
+  showPage('historyDetail');
 
   try {
     const res = await api('/generate/image', {
@@ -816,9 +800,10 @@ async function startGenerate() {
         quality: selectedQuality,
         imagePaths: res.data.images.map(img => img.url),
         localPaths: res.data.images.map(img => img.localPath || ''),
-        createdAt: new Date().toISOString()
+        createdAt: res.data.createdAt || ''
       };
       $('loadingWrap').style.display = 'none';
+      $('detailWrap').style.display = '';
       updateMineDisplay();
       detailReturnTarget = 'generate';
       applyHistoryDetailView(item, { canEdit: true, title: '详情' });
@@ -838,10 +823,11 @@ async function startGenerate() {
     } else if (err.message && err.message.includes('正在生成中')) {
       showToast(err.message);
       $('loadingWrap').style.display = 'flex';
-      $('resultWrap').style.display = 'none';
+      $('detailWrap').style.display = 'none';
       $('errorState').style.display = 'none';
     } else {
       $('loadingWrap').style.display = 'none';
+      $('detailWrap').style.display = 'none';
       $('errorState').style.display = 'flex';
       $('errorMsg').textContent = err.message || '生成请求失败，请稍后重试';
     }
@@ -866,13 +852,11 @@ async function regenerateCurrentDetail(mode) {
   closeModifyModal();
 
   if (mode === 'history') {
-    setDisplay('historyDetailLoading', 'flex');
-    setDisplay('historyDetailWrap', 'none');
-  } else {
-    $('loadingWrap').style.display = 'flex';
-    $('resultWrap').style.display = 'none';
-    $('errorState').style.display = 'none';
+    $('loadingSub').textContent = '正在基于当前作品重新生成';
   }
+  $('loadingWrap').style.display = 'flex';
+  $('detailWrap').style.display = 'none';
+  $('errorState').style.display = 'none';
 
   const refSrc = currentResultImagesPath.filter(Boolean).length
     ? currentResultImagesPath.filter(Boolean)
@@ -909,9 +893,9 @@ async function regenerateCurrentDetail(mode) {
       });
 
       if (mode === 'history') {
-        setDisplay('historyDetailLoading', 'none');
-        setDisplay('historyDetailWrap', '');
-        $('historyDetailImg').src = currentResultImages[0];
+        $('loadingWrap').style.display = 'none';
+        $('detailWrap').style.display = '';
+        $('detailImg').src = currentResultImages[0];
         waitForImageLoad(currentResultImages[0]).catch(() => {
           showToast('修改成功，但结果图片加载失败，请稍后重试查看历史记录');
         });
@@ -936,10 +920,8 @@ async function regenerateCurrentDetail(mode) {
       showToast(err.message || '调整失败，请重试');
     }
   } finally {
-    if (mode === 'history') {
-      setDisplay('historyDetailLoading', 'none');
-      setDisplay('historyDetailWrap', '');
-    }
+    $('loadingWrap').style.display = 'none';
+    $('detailWrap').style.display = '';
     isGenerating = false;
     $('modifySubmitBtn').disabled = false;
     $('modifySubmitBtn').textContent = '重新生成';
@@ -967,11 +949,10 @@ function showPage(page) {
 
 function setDetailActionsVisible(canEdit) {
   const isShare = Boolean(getShareImageId());
-  setDisplay('modifyBtn', canEdit ? '' : 'none');
-  setDisplay('historyDetailModifyBtn', canEdit ? '' : 'none');
-  setDisplay('historyDetailSaveBtn', isShare ? 'none' : '');
-  setDisplay('historyDetailShareBtn', isShare ? 'none' : '');
-  setDisplay('historyDetailLoginBtn', isShare && !canEdit ? 'block' : 'none');
+  setDisplay('detailModifyBtn', canEdit ? '' : 'none');
+  setDisplay('detailSaveBtn', isShare ? 'none' : '');
+  setDisplay('detailShareBtn', isShare ? 'none' : '');
+  setDisplay('detailLoginBtn', isShare && !canEdit ? 'block' : 'none');
 }
 
 async function loadHistoryDetailById(imageId) {
