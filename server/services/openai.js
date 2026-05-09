@@ -116,6 +116,8 @@ function buildPrompt(scene, userText, hasReferenceImages = false) {
     'Focus only on the flat artwork itself.',
     hasReferenceImages ? 'Use all provided reference images as design assets and integrate the key elements from each image into one coherent flat design.' : null,
     hasReferenceImages ? 'Do not ignore any uploaded reference image. If one image is a main visual and another is a logo or supporting element, preserve and place them appropriately in the final composition.' : null,
+    hasReferenceImages ? 'Keep the uploaded reference images as faithful as possible to the originals. Do not redraw, repaint, cartoonize, illustrate, or stylize them.' : null,
+    hasReferenceImages ? 'Preserve their realistic photographic appearance, texture, edges, and object details as much as possible while integrating them into the design.' : null,
     'All text must be in Chinese.',
     '',
     'Render ONLY the following text exactly as written. Do not add or modify any text.',
