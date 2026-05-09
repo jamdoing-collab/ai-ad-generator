@@ -87,7 +87,6 @@ const generateRoutes = require('./routes/generate');
   const configRoutes = require('./routes/config');
 const auth = require('./middleware/auth');
 const rateLimit = require('./middleware/rateLimit');
-const generateRateLimit = require('./middleware/generateRateLimit');
 
 async function resolveImageFilePath(req, { requireOwnership }) {
   const imageId = parseInt(req.params.id);
