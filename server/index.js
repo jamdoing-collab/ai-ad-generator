@@ -10,6 +10,9 @@ const config = require('./config');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// 部署在 Railway / 反向代理后时，信任第一层代理，确保 req.ip 可用于限速与日志。
+app.set('trust proxy', 1);
+
 // 安全头
 app.use(helmet({
   contentSecurityPolicy: false,
