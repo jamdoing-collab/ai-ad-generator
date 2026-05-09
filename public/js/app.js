@@ -61,7 +61,7 @@ function setDisplay(id, value) {
 }
 
 function getCurrentCost() {
-  return selectedQuality === '4k' ? 3 : selectedQuality === '2k' ? 2 : 1;
+  return getCurrentQualityConfig().cost;
 }
 
 const QUALITY_HINTS = {
@@ -119,13 +119,15 @@ function applyHistoryDetailView(item, { canEdit = false, title = '作品详情' 
   $('historyDetailSize').textContent = sizeStr;
   $('historyDetailDate').textContent = dateStr;
 
+  const localPaths = (item.localPaths || item.imagePaths || []).map((p, i) => p.startsWith('/uploads/') ? p : (item.imagePaths?.[i] || p));
+
   applyDetailResult({
     scene: item.scene,
     text: item.prompt,
     width,
     height,
     quality: item.quality || 'default',
-    images: [{ url: fullUrl, localPath: fullUrl }],
+    images: (item.imagePaths || [fullUrl]).map((url, i) => ({ url, localPath: localPaths[i] || '' })),
     imageId: item.id,
     points: userInfo?.points ?? 0,
     mode: 'history'
@@ -410,11 +412,6 @@ function bindMobileEvents() {
   $('genBtn').addEventListener('click', () => startGenerate());
 
   $('mineEntry').addEventListener('click', () => {
-    if (!userInfo) {
-      updateMineDisplay();
-      showPage('mine');
-      return;
-    }
     updateMineDisplay();
     showPage('mine');
   });
@@ -523,22 +520,12 @@ function bindMobileEvents() {
     if (e.target.id === 'modifyModal') closeModifyModal();
   });
   $('modifySubmitBtn').addEventListener('click', () => {
-    if (currentDetailMode === 'history') {
-      regenerateCurrentDetail('history');
-      return;
-    }
-    regenerateCurrentDetail('result');
+    regenerateCurrentDetail(currentDetailMode);
   });
 
   $('copyWechatBtn').addEventListener('click', () => {
     const wechat = $('contactWechat').textContent.trim();
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(wechat).then(() => {
-        showToast('微信号已复制');
-      }).catch(() => fallbackCopy(wechat, '微信号已复制'));
-    } else {
-      fallbackCopy(wechat, '微信号已复制');
-    }
+    copyText(wechat, '微信号已复制');
   });
 
   $('resultDots').addEventListener('click', onResultDotClick);
@@ -1098,14 +1085,7 @@ function copyInviteLink() {
     showToast('邀请链接暂不可用');
     return;
   }
-
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(link).then(() => {
-      showToast('邀请链接已复制');
-    }).catch(() => fallbackCopy(link, '邀请链接已复制'));
-  } else {
-    fallbackCopy(link, '邀请链接已复制');
-  }
+  copyText(link, '邀请链接已复制');
 }
 
 async function showRechargeModal() {
@@ -1311,37 +1291,8 @@ async function loadHistory() {
 }
 
 function loadHistoryDetail(item) {
-  const fullUrl = item.imagePaths?.[0];
-  const sceneName = MATERIALS.find(m => m.key === item.scene)?.name || item.scene;
-  const width = item.width || 0;
-  const height = item.height || 0;
-  const unit = item.scene && MATERIALS.find(m => m.key === item.scene)?.unit || 'cm';
-  const sizeStr = width && height ? `${width}×${height}${unit}` : '-';
-  const dateStr = item.createdAt ? new Date(item.createdAt).toLocaleString('zh-CN') : '-';
-
-  $('historyDetailImg').src = fullUrl || '';
-  $('historyDetailScene').textContent = sceneName;
-  $('historyDetailSize').textContent = sizeStr;
-  $('historyDetailDate').textContent = dateStr;
-
-  applyDetailResult({
-    scene: item.scene,
-    text: item.prompt,
-    width,
-    height,
-    images: [{ url: fullUrl, localPath: fullUrl }],
-    imageId: item.id,
-    points: userInfo?.points ?? 0,
-    mode: 'history'
-  });
-
-  updateTweakCost();
-  renderResultDetailMeta();
+  applyHistoryDetailView(item, { canEdit: true, title: '作品详情' });
   window.location.hash = `history-${item.id}`;
-  showPage('historyDetail');
-  waitForImageLoad(fullUrl).catch(() => {
-    showToast('历史详情已打开，但图片加载失败，请稍后重试');
-  });
 }
 
 function showConfirm(message, onOk) {
