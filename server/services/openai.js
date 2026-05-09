@@ -13,15 +13,15 @@ function getConfig() {
 
 // 物料统一数据源（前后端共享唯一来源）
 const MATERIALS = [
-  { key: 'door', name: '门头招牌', icon: '🏪', desc: 'Storefront signage banner.', defaultW: 300, defaultH: 100, defaultAspectRatio: '3:1' },
-  { key: 'poster', name: '活动海报', icon: '📢', desc: 'Commercial activity poster.', defaultW: 40, defaultH: 60, defaultAspectRatio: '2:3' },
-  { key: 'menu', name: '餐饮菜单', icon: '🍜', desc: 'Restaurant menu page.', defaultW: 21, defaultH: 30, defaultAspectRatio: '2:3' },
-  { key: 'rollup', name: '易拉宝', icon: '🎞️', desc: 'Roll-up display banner.', defaultW: 80, defaultH: 200, defaultAspectRatio: '2:5' },
-  { key: 'wall', name: '文化墙', icon: '🏢', desc: 'Corporate culture wall mural.', defaultW: 300, defaultH: 150, defaultAspectRatio: '2:1' },
-  { key: 'brochure', name: '宣传册封面', icon: '📒', desc: 'Product brochure front cover and back cover spread, no spine, A3 landscape format, professional editorial design, clean luxury style.', defaultW: 42, defaultH: 29, defaultAspectRatio: '3:2' },
-  { key: 'flyer', name: '宣传单页', icon: '📄', desc: 'Promotional flyer.', defaultW: 21, defaultH: 30, defaultAspectRatio: '2:3' },
-  { key: 'ecom', name: '电商主图', icon: '🛒', desc: 'E-commerce product main image.', defaultW: 1024, defaultH: 1024, unit: 'px', defaultAspectRatio: '1:1' },
-  { key: 'moment', name: '朋友圈配图', icon: '📱', desc: 'WeChat Moments share image.', defaultW: 1024, defaultH: 1024, unit: 'px', defaultAspectRatio: '1:1' },
+  { key: 'door', name: '门头招牌', icon: '🏪', desc: 'Wide horizontal signboard layout, strong long-distance readability, bold title hierarchy, clean flat print design.', defaultW: 300, defaultH: 100, defaultAspectRatio: '3:1' },
+  { key: 'poster', name: '活动海报', icon: '📢', desc: 'Vertical promotional poster layout, strong visual hierarchy, bold headline area, clean flat print design.', defaultW: 40, defaultH: 60, defaultAspectRatio: '2:3' },
+  { key: 'menu', name: '餐饮菜单', icon: '🍜', desc: 'Restaurant menu flat layout, clear category sections, readable dish and price hierarchy, clean print-ready design.', defaultW: 21, defaultH: 30, defaultAspectRatio: '2:3' },
+  { key: 'rollup', name: '易拉宝', icon: '🎞️', desc: 'Tall vertical exhibition banner layout, top-to-bottom information flow, bold title with supporting sections, flat print-ready design.', defaultW: 80, defaultH: 200, defaultAspectRatio: '2:5' },
+  { key: 'wall', name: '文化墙', icon: '🏢', desc: 'Wide horizontal corporate information layout, modular section arrangement, strong visual order, flat print-ready design.', defaultW: 300, defaultH: 150, defaultAspectRatio: '2:1' },
+  { key: 'brochure', name: '宣传册封面', icon: '📒', desc: 'Brochure cover spread layout, editorial composition, clean premium typography, flat print-ready design.', defaultW: 42, defaultH: 29, defaultAspectRatio: '3:2' },
+  { key: 'flyer', name: '宣传单页', icon: '📄', desc: 'Promotional flyer flat layout, concise information blocks, clear call-to-action hierarchy, print-ready design.', defaultW: 21, defaultH: 30, defaultAspectRatio: '2:3' },
+  { key: 'ecom', name: '电商主图', icon: '🛒', desc: 'Square product-focused flat composition, strong product emphasis, clean promotional layout, e-commerce ready design.', defaultW: 1024, defaultH: 1024, unit: 'px', defaultAspectRatio: '1:1' },
+  { key: 'moment', name: '朋友圈配图', icon: '📱', desc: 'Square social-share flat composition, clean visual hierarchy, strong readability on mobile, share-ready design.', defaultW: 1024, defaultH: 1024, unit: 'px', defaultAspectRatio: '1:1' },
 ];
 
 const SCENE_DESCS = Object.fromEntries(
@@ -112,7 +112,12 @@ function buildPrompt(scene, userText, feedback = null) {
     : '';
 
   const lines = [
-    `${desc} All text must be in Chinese.`,
+    `${desc}`,
+    'Generate a flat, print-ready 2D design draft only.',
+    'Do not create mockups, photographed product setups, physical display stands, storefront exteriors, wall installations, lighting fixtures, room scenes, or any real-world environmental presentation.',
+    'Do not show frames, supports, walls, store facades, shelves, spotlights, hanging structures, or perspective display effects.',
+    'Focus only on the flat artwork itself.',
+    'All text must be in Chinese.',
     feedbackRule,
     '',
     'Render ONLY the following text exactly as written. Do not add or modify any text.',
@@ -137,6 +142,9 @@ function buildEditPrompt(scene, userText, feedback = null) {
     'Preserve the original layout, composition, hierarchy, typography placement, and key visual elements as much as possible.',
     'Do not redesign the whole image unless the requested changes require it.',
     'Only modify the aspects explicitly requested below.',
+    'Keep the output as a flat, print-ready 2D design draft only.',
+    'Do not turn it into a mockup, photographed real-world setup, display stand, storefront scene, wall scene, lighting scene, or any environmental rendering.',
+    'Do not add frames, supports, walls, store facades, spotlights, room perspective, or physical presentation context.',
     'All text in the image must remain in Chinese.',
     feedbackRule,
     '',
