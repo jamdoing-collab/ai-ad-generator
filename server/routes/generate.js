@@ -69,6 +69,7 @@ function formatImageDetail(image, { imageUrlBuilder, thumbUrl, includeOwnerUserI
     height: image.height,
     quality: image.quality || 'default',
     imagePaths: image.image_paths.map((_, i) => imageUrlBuilder(image.id, i)),
+    localPaths: image.image_paths,
     thumbUrl,
     createdAt: image.created_at
   };
@@ -78,6 +79,17 @@ function formatImageDetail(image, { imageUrlBuilder, thumbUrl, includeOwnerUserI
   }
 
   return detail;
+}
+
+function buildGenerateResponse({ imageId, imagePaths, points, token }) {
+  return {
+    code: 0,
+    data: {
+      images: imagePaths.map((path, i) => ({ index: i, url: `/image/${imageId}?index=${i}&token=${token}`, localPath: path })),
+      points,
+      imageId
+    }
+  };
 }
 
 function parsePositiveNumber(value) {
@@ -181,7 +193,12 @@ router.post('/image', async (req, res) => {
     const cached = recentGenerateResults.get(generateRequestKey);
     if (cached) {
       console.log(`[生成请求:${requestId}] 命中近期成功结果缓存 key=${generateRequestKey.slice(0, 8)}`);
-      return res.json(cached.response);
+      return res.json(buildGenerateResponse({
+        imageId: cached.imageId,
+        imagePaths: cached.imagePaths,
+        points: cached.points,
+        token: req.token
+      }));
     }
 
     if (activeGenerateRequests.has(generateRequestKey)) {
@@ -288,16 +305,14 @@ router.post('/image', async (req, res) => {
       }
     }
     
-    const responsePayload = {
-      code: 0,
-      data: {
-        images: imagePaths.map((path, i) => ({ index: i, url: `/image/${imageId}?index=${i}&token=${req.token}`, localPath: path })),
-        points: newPoints,
-        imageId
-      }
-    };
+    const responsePayload = buildGenerateResponse({
+      imageId,
+      imagePaths,
+      points: newPoints,
+      token: req.token
+    });
 
-    recentGenerateResults.set(generateRequestKey, { createdAt: Date.now(), response: responsePayload });
+    recentGenerateResults.set(generateRequestKey, { createdAt: Date.now(), imageId, imagePaths, points: newPoints });
     activeGenerateRequests.delete(generateRequestKey);
     console.log(`[生成请求:${requestId}] 响应返回成功`);
     res.json(responsePayload);

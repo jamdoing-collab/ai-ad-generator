@@ -30,7 +30,7 @@ const SCENE_DESCS = Object.fromEntries(
 
 // 根据物料宽高比选择 grsai aspectRatio（与 grsai 支持的预设完全对齐）
 // gpt-image-2-vip: 动态计算像素值（OpenAI 约束：边长≤3840，16的倍数，长短边比≤3:1，总像素655360~8294400）
-// gpt-image-2: 预设比例字符串（从大到小排列，ratio > maxRatio 时命中）
+// gpt-image-2: 预设比例字符串（从大到小排列，找第一个 ratio <= maxRatio 的档位）
 const RATIO_PRESETS = [
   // 横版（ratio > 1）
   { maxRatio: 3.5, value: '3:1' },
@@ -98,8 +98,9 @@ function calcAspectRatio(width, height, quality = 'default') {
   }
   const ratio = width / height;
   for (const r of RATIO_PRESETS) {
-    if (ratio <= r.maxRatio) continue;
-    return { model: MODEL, aspectRatio: r.value };
+    if (ratio <= r.maxRatio) {
+      return { model: MODEL, aspectRatio: r.value };
+    }
   }
   return { model: MODEL, aspectRatio: '1:3' };
 }
