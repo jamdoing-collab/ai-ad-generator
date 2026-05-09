@@ -168,9 +168,14 @@ function openModifyModal(mode) {
   if ($('modifyFeedbackInput')) $('modifyFeedbackInput').value = '';
   if ($('modifySubmitBtn')) {
     $('modifySubmitBtn').disabled = false;
-    $('modifySubmitBtn').textContent = '重新生成';
+    $('modifySubmitBtn').textContent = '再生成一张';
   }
   setDisplay('modifyModal', 'flex');
+}
+
+function updateModifySubmitLabel() {
+  if (!$('modifySubmitBtn') || !$('modifyFeedbackInput')) return;
+  $('modifySubmitBtn').textContent = $('modifyFeedbackInput').value.trim() ? '应用修改并生成' : '再生成一张';
 }
 
 function closeModifyModal() {
@@ -424,6 +429,12 @@ function bindMobileEvents() {
     showLoginModal();
   });
 
+  $('modalLoginPassword').addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      doLogin($('modalLoginUsername').value.trim(), $('modalLoginPassword').value);
+    }
+  });
+
   $('helpBtn').addEventListener('click', () => showPage('help'));
   $('helpBackBtn').addEventListener('click', () => showPage('mine'));
   $('inviteBtn').addEventListener('click', loadInvitePage);
@@ -431,7 +442,7 @@ function bindMobileEvents() {
   $('copyInviteBtn').addEventListener('click', copyInviteLink);
 
   $('retryBtn').addEventListener('click', () => {
-    showPage('generate');
+    startGenerate();
   });
   $('downloadBtn').addEventListener('click', downloadImage);
   $('modifyBtn').addEventListener('click', () => openModifyModal('result'));
@@ -441,6 +452,9 @@ function bindMobileEvents() {
   $('resultImg').addEventListener('click', () => {
     $('fullscreenImg').src = $('resultImg').src;
     $('fullscreenViewer').style.display = 'flex';
+  });
+  $('fullscreenClose').addEventListener('click', () => {
+    $('fullscreenViewer').style.display = 'none';
   });
   $('fullscreenViewer').addEventListener('click', () => {
     $('fullscreenViewer').style.display = 'none';
@@ -522,6 +536,7 @@ function bindMobileEvents() {
   $('modifySubmitBtn').addEventListener('click', () => {
     regenerateCurrentDetail(currentDetailMode);
   });
+  $('modifyFeedbackInput').addEventListener('input', updateModifySubmitLabel);
 
   $('copyWechatBtn').addEventListener('click', () => {
     const wechat = $('contactWechat').textContent.trim();
@@ -743,7 +758,7 @@ async function startGenerate() {
   if (isGenerating) return;
   if (!authToken || !userInfo) { showLoginModal(); return; }
   const needPoints = getCurrentCost();
-  if (userInfo.points < needPoints) { alert('点数不足，请充值'); showRechargeModal(); return; }
+  if (userInfo.points < needPoints) { showToast('点数不足，请充值'); showRechargeModal(); return; }
 
   isGenerating = true;
 
@@ -838,7 +853,7 @@ async function regenerateCurrentDetail(mode) {
 
   const feedback = ($('modifyFeedbackInput').value || '').trim();
   const needPoints = getCurrentCost();
-  if (userInfo.points < needPoints) { alert('点数不足，请充值'); showRechargeModal(); return; }
+  if (userInfo.points < needPoints) { showToast('点数不足，请充值'); showRechargeModal(); return; }
 
   isGenerating = true;
   $('modifySubmitBtn').disabled = true;
@@ -1011,7 +1026,7 @@ async function doLogin(username, password, options = {}) {
       options.onSuccess();
     }
   } else {
-    alert(res.message || (isRegister ? '注册失败' : '登录失败'));
+    showToast(res.message || (isRegister ? '注册失败' : '登录失败'));
   }
 }
 
@@ -1278,11 +1293,15 @@ async function loadHistory() {
       <div class="history-empty-icon">🎨</div>
       <div class="history-empty-title">暂无生成记录</div>
       <div class="history-empty-desc">去创作你的第一张AI广告设计吧</div>
+      <div class="history-empty-actions"><button class="btn-primary" id="historyGoCreateBtn" type="button">去创作</button></div>
     </div>`;
 
     if (historyLoadFailed) {
       const retryBtn = $('historyRetryBtn');
       if (retryBtn) retryBtn.addEventListener('click', () => loadHistory());
+    } else {
+      const goCreateBtn = $('historyGoCreateBtn');
+      if (goCreateBtn) goCreateBtn.addEventListener('click', () => showPage('generate'));
     }
     return;
   }
