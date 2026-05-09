@@ -135,7 +135,15 @@ function buildEditPrompt(scene, userText, feedback = null) {
     'Preserve the original layout, composition, hierarchy, typography placement, and key visual elements as much as possible.',
     'Do not redesign the whole image unless the requested changes require it.',
     'Only modify the aspects explicitly requested below.',
+    'Keep the output as a flat, print-ready 2D design draft only.',
+    'Do not turn it into a mockup, real-world scene, display stand, storefront scene, wall scene, lighting scene, or environmental rendering.',
+    'All text in the image must remain in Chinese.',
     feedbackRule,
+    '',
+    'Keep the following text exactly unchanged. Do not add, remove, or rewrite any text.',
+    '---',
+    userText.trim(),
+    '---',
   ];
 
   return lines.filter(Boolean).join('\n');
