@@ -375,6 +375,12 @@ router.post('/image', generateRateLimit, async (req, res) => {
     if (err.message && (err.message.includes('未配置 API Key') || err.message.includes('未配置 API Base URL'))) {
       return res.status(503).json({ code: 503, message: '图片生成服务未配置，请联系管理员设置 API Key' });
     }
+    if (err.message && err.message.includes('未配置图床 API Token')) {
+      return res.status(503).json({ code: 503, message: '参考图上传服务未配置，请联系管理员检查图床设置' });
+    }
+    if (err.message && err.message.includes('图床上传失败')) {
+      return res.status(503).json({ code: 503, message: `参考图上传失败：${err.message}` });
+    }
     res.status(500).json({ code: 500, message: '生成失败，请稍后重试' });
   } finally {
     for (const tempPath of tempReferenceImagePaths) {

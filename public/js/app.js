@@ -832,7 +832,7 @@ async function startGenerate() {
       window.location.hash = `history-${currentResultImageId}`;
     } else {
       const msg = res.code === 503
-        ? '服务未配置密钥，请联系管理员'
+        ? (res.message || '服务暂不可用，请稍后重试')
         : res.code === 409
           ? '相同内容正在生成中，请稍候查看结果'
           : res.message;
@@ -918,7 +918,7 @@ async function regenerateCurrentDetail(mode) {
       showToast('调整完成');
     } else {
       const msg = res.code === 503
-        ? '服务未配置密钥，请联系管理员'
+        ? (res.message || '服务暂不可用，请稍后重试')
         : res.code === 409
           ? '相同内容正在生成中，请稍候查看结果'
           : res.message;
