@@ -442,7 +442,7 @@ function bindMobileEvents() {
   $('copyInviteBtn').addEventListener('click', copyInviteLink);
 
   $('retryBtn').addEventListener('click', () => {
-    startGenerate();
+    showPage('generate');
   });
   $('downloadBtn').addEventListener('click', downloadImage);
   $('modifyBtn').addEventListener('click', () => openModifyModal('result'));

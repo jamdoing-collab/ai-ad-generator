@@ -134,7 +134,8 @@ async function downloadReferenceImageToTemp(url) {
 }
 
 function resolveUploadPath(uploadPath) {
-  const normalizedPath = path.normalize(uploadPath).replace(/^(\.\.[\/\\])+/, '');
+  const withoutPrefix = String(uploadPath).replace(/^\/uploads\//, '');
+  const normalizedPath = path.normalize(withoutPrefix).replace(/^(\.\.[\/\\])+/, '');
   const resolvedPath = path.resolve(uploadsRoot, normalizedPath);
   const resolvedRoot = path.resolve(uploadsRoot);
 
