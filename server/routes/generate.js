@@ -124,13 +124,16 @@ router.post('/image', async (req, res) => {
   }
 
   const requestId = uuidv4().slice(0, 8);
-  let referenceImagePath = null;
-  let shouldCleanupTemp = false;
+  let referenceImagePaths = [];
+  let tempReferenceImagePaths = [];
   let pointsCost = config.POINTS_PER_GENERATE;
   let generateRequestKey = null;
 
   try {
     const { scene, text, width = 60, height = 90, quality = 'default', referenceImage, feedback } = req.body;
+    const referenceImages = Array.isArray(referenceImage)
+      ? referenceImage.filter(Boolean).slice(0, 3)
+      : (referenceImage ? [referenceImage] : []);
     const parsedWidth = parsePositiveNumber(width);
     const parsedHeight = parsePositiveNumber(height);
     const validQualities = ['default', '2k', '4k'];
@@ -171,7 +174,7 @@ router.post('/image', async (req, res) => {
       width: parsedWidth,
       height: parsedHeight,
       quality: qualityLevel,
-      referenceImage: referenceImage || null,
+      referenceImage: referenceImages,
       feedback: (feedback && typeof feedback.trim === 'function') ? feedback.trim() : null
     });
 
@@ -199,27 +202,22 @@ router.post('/image', async (req, res) => {
     console.log(`[生成请求:${requestId}] 扣点成功 points=${newPoints}`);
 
     // 处理参考图
-    if (referenceImage) {
-      if (referenceImage.startsWith('data:')) {
-        // Base64 图片，保存到临时文件
-        const base64Data = referenceImage.replace(/^data:image\/\w+;base64,/, '');
+    for (const ref of referenceImages) {
+      if (ref.startsWith('data:')) {
+        const base64Data = ref.replace(/^data:image\/\w+;base64,/, '');
         const buffer = Buffer.from(base64Data, 'base64');
         if (buffer.length > MAX_REFERENCE_IMAGE_BYTES) {
           throw new Error('参考图大小不能超过10MB');
         }
-        const tempPath = path.join(__dirname, '../../uploads/temp', `ref_${Date.now()}.png`);
-
+        const tempPath = path.join(__dirname, '../../uploads/temp', `ref_${Date.now()}_${uuidv4().slice(0, 6)}.png`);
         const tempDir = path.dirname(tempPath);
         await fs.mkdir(tempDir, { recursive: true });
         await fs.writeFile(tempPath, buffer);
-
-        // 校验图片格式
         await validateImageFormat(tempPath);
-
-        referenceImagePath = tempPath;
-        shouldCleanupTemp = true;
-      } else if (referenceImage.startsWith('/uploads/')) {
-        const resolved = resolveUploadPath(referenceImage);
+        referenceImagePaths.push(tempPath);
+        tempReferenceImagePaths.push(tempPath);
+      } else if (ref.startsWith('/uploads/')) {
+        const resolved = resolveUploadPath(ref);
         const stat = await fs.stat(resolved).catch(() => null);
         if (!stat) throw new Error('参考图文件不存在');
         const realPath = await fs.realpath(resolved);
@@ -227,17 +225,17 @@ router.post('/image', async (req, res) => {
         if (!realPath.startsWith(resolvedRoot + path.sep) && realPath !== resolvedRoot) {
           throw new Error('非法参考图路径');
         }
-        referenceImagePath = realPath;
-        await validateImageFormat(referenceImagePath);
+        await validateImageFormat(realPath);
+        referenceImagePaths.push(realPath);
       } else {
         throw new Error('不支持的参考图格式');
       }
     }
     
     // 上传参考图到图床，获取公网 URL
-    let referenceImageUrl = null;
-    if (referenceImagePath) {
-      referenceImageUrl = await uploadToImageHost(referenceImagePath);
+    let referenceImageUrls = [];
+    if (referenceImagePaths.length > 0) {
+      referenceImageUrls = await Promise.all(referenceImagePaths.map(uploadToImageHost));
       console.log(`[生成请求:${requestId}] 图床上传成功`);
     }
 
@@ -248,7 +246,7 @@ router.post('/image', async (req, res) => {
       width: parsedWidth,
       height: parsedHeight,
       quality: qualityLevel,
-      referenceImage: referenceImageUrl,
+      referenceImage: referenceImageUrls,
       feedback: (feedback && typeof feedback.trim === 'function') ? feedback.trim() : null
     });
     console.log(`[生成请求:${requestId}] grsai 成功返回 images=${generatedImages.length}`);
@@ -321,8 +319,8 @@ router.post('/image', async (req, res) => {
     }
     res.status(500).json({ code: 500, message: '生成失败，请稍后重试' });
   } finally {
-    if (shouldCleanupTemp && referenceImagePath) {
-      try { await fs.unlink(referenceImagePath); } catch {
+    for (const tempPath of tempReferenceImagePaths) {
+      try { await fs.unlink(tempPath); } catch {
       }
     }
   }

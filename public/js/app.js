@@ -646,7 +646,7 @@ async function validateSize() {
 }
 
 function chooseImage() {
-  if (uploadedImages.length >= 1) { alert('最多上传1张素材图'); return; }
+  if (uploadedImages.length >= 3) { alert('最多上传3张素材图'); return; }
   const input = document.createElement('input');
   input.type = 'file';
   input.accept = 'image/jpeg,image/png,image/webp';
@@ -654,7 +654,10 @@ function chooseImage() {
     const file = e.target.files[0];
     if (file.size > 10 * 1024 * 1024) { alert('图片大小不能超过10MB'); return; }
     const reader = new FileReader();
-    reader.onload = evt => { uploadedImages = [evt.target.result]; renderUploadedImages(); };
+    reader.onload = evt => {
+      uploadedImages.push(evt.target.result);
+      renderUploadedImages();
+    };
     reader.readAsDataURL(file);
   };
   input.click();
@@ -666,7 +669,7 @@ function renderUploadedImages() {
       <img src="${img}" alt="">
       <span class="upload-remove" data-index="${i}">×</span>
     </div>
-  `).join('') + (uploadedImages.length < 1 ? '<div class="upload-btn"><span class="upload-plus">+</span><span>添加素材</span></div>' : '');
+  `).join('') + (uploadedImages.length < 3 ? '<div class="upload-btn"><span class="upload-plus">+</span><span>添加素材</span></div>' : '');
 
   const area = $('uploadArea');
   area.innerHTML = html;
@@ -787,7 +790,7 @@ async function startGenerate() {
         width: width,
         height: height,
         quality: selectedQuality,
-        referenceImage: uploadedImages[0] || null
+        referenceImage: uploadedImages.length ? uploadedImages : null
       })
     });
 

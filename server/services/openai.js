@@ -221,8 +221,11 @@ const MAX_GENERATE_RETRIES = 2;
 
 async function generateImage(options) {
   const { scene, userText, width, height, referenceImage, feedback, quality = 'default' } = options;
+  const referenceImages = Array.isArray(referenceImage)
+    ? referenceImage.filter(Boolean)
+    : (referenceImage ? [referenceImage] : []);
   const { model: genModel, aspectRatio } = calcAspectRatio(width, height, quality);
-  const prompt = referenceImage
+  const prompt = referenceImages.length > 0
     ? buildEditPrompt(scene, userText, feedback)
     : buildPrompt(scene, userText);
 
@@ -240,8 +243,8 @@ async function generateImage(options) {
       };
 
       // 参考图（需要公开可访问的 URL）
-      if (referenceImage) {
-        body.urls = [referenceImage];
+      if (referenceImages.length > 0) {
+        body.urls = referenceImages;
       }
 
       console.log('[grsai] 生图请求:', { scene, aspectRatio, model: genModel, quality, attempt, promptLen: prompt.length });
