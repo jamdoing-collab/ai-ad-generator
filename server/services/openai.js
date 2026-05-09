@@ -128,14 +128,19 @@ function buildEditPrompt(scene, userText, feedback = null) {
   const desc = SCENE_DESCS[scene] || 'Commercial design.';
   const safeFeedback = feedback ? String(feedback).slice(0, 100) : null;
   const feedbackRule = safeFeedback
-    ? `User feedback on previous result: ${safeFeedback}\nPlease adjust accordingly while preserving the key visual elements from the reference image.`
+    ? `Requested changes:\n${safeFeedback}`
     : '';
 
   const lines = [
-    `Redesign this image into a ${desc.toLowerCase().trim()} Keep the key visual elements from the original image. All text must be in Chinese.`,
+    `This image is a ${desc.toLowerCase().trim()}`,
+    'Edit the provided image with minimal necessary changes.',
+    'Preserve the original layout, composition, hierarchy, typography placement, and key visual elements as much as possible.',
+    'Do not redesign the whole image unless the requested changes require it.',
+    'Only modify the aspects explicitly requested below.',
+    'All text in the image must remain in Chinese.',
     feedbackRule,
     '',
-    'Render ONLY the following text exactly as written. Do not add or modify any text.',
+    'Keep the following text exactly unchanged. Do not add, remove, or rewrite any text.',
     '---',
     userText.trim(),
     '---',
