@@ -169,6 +169,11 @@ router.put('/users/:id', async (req, res) => {
     const updatedUser = db.updateUserAdminProfile(userId, updates) || existingUser;
 
     if (req.body.password) {
+      const passwordError = validatePassword(req.body.password);
+      if (passwordError) {
+        return res.status(400).json({ code: 400, message: passwordError });
+      }
+
       const hashedPassword = await bcrypt.hash(req.body.password, 10);
       db.updateUserPassword(userId, hashedPassword);
     }

@@ -8,7 +8,7 @@ const bcrypt = require('bcryptjs');
 const config = require('./config');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = config.PORT;
 
 // 部署在 Railway / 反向代理后时，信任第一层代理，确保 req.ip 可用于限速与日志。
 app.set('trust proxy', 1);
@@ -79,14 +79,14 @@ async function startServer() {
   console.log('[数据库] 已就绪');
   
   // 引入路由（需要等数据库初始化完成后）
-const authRoutes = require('./routes/auth');
-const userRoutes = require('./routes/user');
-const generateRoutes = require('./routes/generate');
+  const authRoutes = require('./routes/auth');
+  const userRoutes = require('./routes/user');
+  const generateRoutes = require('./routes/generate');
   const paymentRoutes = require('./routes/payment');
   const adminRoutes = require('./routes/admin');
   const configRoutes = require('./routes/config');
-const auth = require('./middleware/auth');
-const rateLimit = require('./middleware/rateLimit');
+  const auth = require('./middleware/auth');
+  const rateLimit = require('./middleware/rateLimit');
 
 async function resolveImageFilePath(req, { requireOwnership }) {
   const imageId = parseInt(req.params.id);
