@@ -30,25 +30,25 @@ const SCENE_DESCS = Object.fromEntries(
 
 // 根据物料宽高比选择 grsai aspectRatio（与 grsai 支持的预设完全对齐）
 // gpt-image-2-vip: 动态计算像素值（OpenAI 约束：边长≤3840，16的倍数，长短边比≤3:1，总像素655360~8294400）
-// gpt-image-2: 预设比例字符串（从大到小排列，找第一个 ratio <= maxRatio 的档位）
+// gpt-image-2: 预设比例字符串。标准画质下根据用户尺寸选择“最接近”的支持比例。
 const RATIO_PRESETS = [
   // 横版（ratio > 1）
-  { maxRatio: 3.5, value: '3:1' },
-  { maxRatio: 2.5, value: '21:9' },
-  { maxRatio: 1.9, value: '2:1' },
-  { maxRatio: 1.8, value: '16:9' },
-  { maxRatio: 1.35, value: '3:2' },
-  { maxRatio: 1.1, value: '4:3' },
+  { ratio: 3 / 1, value: '3:1' },
+  { ratio: 21 / 9, value: '21:9' },
+  { ratio: 2 / 1, value: '2:1' },
+  { ratio: 16 / 9, value: '16:9' },
+  { ratio: 3 / 2, value: '3:2' },
+  { ratio: 4 / 3, value: '4:3' },
   // 竖版（ratio < 1）
-  { maxRatio: 0.95, value: '1:1' },
-  { maxRatio: 0.8, value: '5:4' },
-  { maxRatio: 0.75, value: '4:5' },
-  { maxRatio: 0.6, value: '3:4' },
-  { maxRatio: 0.5, value: '2:3' },
-  { maxRatio: 0.44, value: '9:16' },
-  { maxRatio: 0.38, value: '1:2' },
-  { maxRatio: 0.25, value: '9:21' },
-  { maxRatio: Infinity, value: '1:3' },
+  { ratio: 1 / 1, value: '1:1' },
+  { ratio: 5 / 4, value: '5:4' },
+  { ratio: 4 / 5, value: '4:5' },
+  { ratio: 3 / 4, value: '3:4' },
+  { ratio: 2 / 3, value: '2:3' },
+  { ratio: 9 / 16, value: '9:16' },
+  { ratio: 1 / 2, value: '1:2' },
+  { ratio: 9 / 21, value: '9:21' },
+  { ratio: 1 / 3, value: '1:3' },
 ];
 
 function calcPixelSize(width, height, maxEdge = 2048) {
@@ -97,12 +97,11 @@ function calcAspectRatio(width, height, quality = 'default') {
     return { model: 'gpt-image-2-vip', aspectRatio: calcPixelSize(width, height, 3840) };
   }
   const ratio = width / height;
-  for (const r of RATIO_PRESETS) {
-    if (ratio <= r.maxRatio) {
-      return { model: MODEL, aspectRatio: r.value };
-    }
-  }
-  return { model: MODEL, aspectRatio: '1:3' };
+  const nearest = RATIO_PRESETS.reduce((best, current) => {
+    if (!best) return current;
+    return Math.abs(ratio - current.ratio) < Math.abs(ratio - best.ratio) ? current : best;
+  }, null);
+  return { model: MODEL, aspectRatio: nearest?.value || '1:1' };
 }
 
 function buildPrompt(scene, userText, hasReferenceImages = false) {

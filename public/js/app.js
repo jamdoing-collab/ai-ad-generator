@@ -593,21 +593,28 @@ async function calcAspectRatio(width, height) {
     console.warn('calcAspectRatio API failed', e);
   }
   const ratio = width / height;
-  if (ratio > 3.5) return '3:1';
-  if (ratio > 2.5) return '21:9';
-  if (ratio > 1.9) return '2:1';
-  if (ratio > 1.8) return '16:9';
-  if (ratio > 1.35) return '3:2';
-  if (ratio > 1.1) return '4:3';
-  if (ratio > 0.95) return '1:1';
-  if (ratio > 0.8) return '5:4';
-  if (ratio > 0.75) return '4:5';
-  if (ratio > 0.6) return '3:4';
-  if (ratio > 0.5) return '2:3';
-  if (ratio > 0.44) return '9:16';
-  if (ratio > 0.38) return '1:2';
-  if (ratio > 0.25) return '9:21';
-  return '1:3';
+  const presets = [
+    { ratio: 3 / 1, value: '3:1' },
+    { ratio: 21 / 9, value: '21:9' },
+    { ratio: 2 / 1, value: '2:1' },
+    { ratio: 16 / 9, value: '16:9' },
+    { ratio: 3 / 2, value: '3:2' },
+    { ratio: 4 / 3, value: '4:3' },
+    { ratio: 1 / 1, value: '1:1' },
+    { ratio: 5 / 4, value: '5:4' },
+    { ratio: 4 / 5, value: '4:5' },
+    { ratio: 3 / 4, value: '3:4' },
+    { ratio: 2 / 3, value: '2:3' },
+    { ratio: 9 / 16, value: '9:16' },
+    { ratio: 1 / 2, value: '1:2' },
+    { ratio: 9 / 21, value: '9:21' },
+    { ratio: 1 / 3, value: '1:3' },
+  ];
+  const nearest = presets.reduce((best, current) => {
+    if (!best) return current;
+    return Math.abs(ratio - current.ratio) < Math.abs(ratio - best.ratio) ? current : best;
+  }, null);
+  return nearest ? nearest.value : '1:1';
 }
 
 
