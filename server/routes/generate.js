@@ -234,11 +234,15 @@ router.post('/image', generateRateLimit, async (req, res) => {
     console.log(`[生成请求:${requestId}] 开始 user=${req.userId} scene=${scene} quality=${qualityLevel}`);
 
     // 原子扣点（防止并发竞态）
-    const newPoints = db.updateUserPoints(req.userId, -pointsCost);
-    if (newPoints === false) {
+    const pointUpdate = db.updateUserPoints(req.userId, -pointsCost);
+    if (!pointUpdate.ok) {
       activeGenerateRequests.delete(generateRequestKey);
+      if (pointUpdate.reason === 'user_not_found') {
+        return res.status(401).json({ code: 401, message: '用户不存在或登录状态失效' });
+      }
       return res.status(402).json({ code: 402, message: '点数不足，请先充值' });
     }
+    const newPoints = pointUpdate.newPoints;
     db.logPointChange(req.userId, 'generate', -pointsCost, `生成${scene}图片（${qualityLevel}）`);
     console.log(`[生成请求:${requestId}] 扣点成功 points=${newPoints}`);
 
@@ -355,7 +359,7 @@ router.post('/image', generateRateLimit, async (req, res) => {
   } catch (err) {
     // 生成失败，退还点数
     const refund = db.updateUserPoints(req.userId, pointsCost);
-    if (refund !== false) {
+    if (refund.ok) {
       db.logPointChange(req.userId, 'refund', pointsCost, '生成失败退还点数');
     } else {
       console.error('[退还点数失败] 用户不存在:', req.userId);

@@ -391,13 +391,19 @@ function updateUserPoints(userId, points) {
     : 'UPDATE users SET points = points + ?, updated_at = datetime("now") WHERE id = ?';
 
   db.run(query, params);
-  if (db.getRowsModified() === 0) return false;
+  if (db.getRowsModified() === 0) {
+    const user = getUserById(userId);
+    if (!user) {
+      return { ok: false, reason: 'user_not_found' };
+    }
+    return { ok: false, reason: 'insufficient_points' };
+  }
 
   const user = getUserById(userId);
-  if (!user) return false;
+  if (!user) return { ok: false, reason: 'user_not_found' };
   const newPoints = user.points;
   saveDatabase();
-  return newPoints;
+  return { ok: true, newPoints };
 }
 
 function getSessionByToken(token) {
@@ -588,15 +594,15 @@ function awardInviteReward(invitedUserId, type, amount, description) {
     return { ok: false, message: '记录奖励失败' };
   }
 
-  const newPoints = updateUserPoints(inviterUserId, parsedAmount);
-  if (newPoints === false) {
+  const pointUpdate = updateUserPoints(inviterUserId, parsedAmount);
+  if (!pointUpdate.ok) {
     db.run('DELETE FROM invite_rewards WHERE invited_user_id = ? AND type = ?', [invitedUserId, type]);
     return { ok: false, message: '邀请者不存在' };
   }
 
   logPointChange(inviterUserId, 'invite_reward', parsedAmount, description);
   saveDatabase();
-  return { ok: true, inviterUserId, newPoints };
+  return { ok: true, inviterUserId, newPoints: pointUpdate.newPoints };
 }
 
 function getInviteSummary(userId) {
@@ -702,12 +708,19 @@ function completeOrderAtomic(orderId) {
     return { ok: false, message: '订单状态异常或已被处理' };
   }
 
-  const newPoints = updateUserPoints(order.user_id, order.points);
+  const pointUpdate = updateUserPoints(order.user_id, order.points);
+  if (!pointUpdate.ok) {
+    db.run(
+      'UPDATE orders SET status = ?, pay_info = ?, updated_at = datetime("now") WHERE id = ?',
+      ['pending', null, orderId]
+    );
+    return { ok: false, message: pointUpdate.reason === 'user_not_found' ? '用户不存在' : '点数入账失败' };
+  }
   logPointChange(order.user_id, 'recharge', order.points, `充值${order.points}点数`);
   saveDatabase();
 
   console.log(`[支付成功] 订单:${orderId} 用户:${order.user_id}`);
-  return { ok: true, newPoints };
+  return { ok: true, newPoints: pointUpdate.newPoints };
 }
 
 function getOrderById(orderId) {
