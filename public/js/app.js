@@ -857,8 +857,9 @@ async function regenerateCurrentDetail(mode) {
   $('modifySubmitBtn').disabled = true;
   $('modifySubmitBtn').textContent = '重新生成中...';
 
-  const localPath = currentResultImagesPath[currentResultIndex] || '';
-  const refSrc = localPath || currentResultImages[currentResultIndex];
+  const refSrc = currentResultImagesPath.filter(Boolean).length
+    ? currentResultImagesPath.filter(Boolean)
+    : (currentResultImages[currentResultIndex] ? [currentResultImages[currentResultIndex]] : null);
 
   try {
     const res = await api('/generate/image', {
@@ -870,7 +871,7 @@ async function regenerateCurrentDetail(mode) {
         height: currentResultHeight,
         quality: currentResultQuality,
         referenceImage: refSrc,
-        feedback: feedback || null
+        feedback: feedback ? feedback : null
       })
     });
 

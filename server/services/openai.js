@@ -104,7 +104,7 @@ function calcAspectRatio(width, height, quality = 'default') {
   return { model: MODEL, aspectRatio: '1:3' };
 }
 
-function buildPrompt(scene, userText) {
+function buildPrompt(scene, userText, hasReferenceImages = false) {
   const desc = SCENE_DESCS[scene] || 'Commercial design.';
 
   const lines = [
@@ -113,6 +113,8 @@ function buildPrompt(scene, userText) {
     'Do not create mockups, photographed product setups, physical display stands, storefront exteriors, wall installations, lighting fixtures, room scenes, or any real-world environmental presentation.',
     'Do not show frames, supports, walls, store facades, shelves, spotlights, hanging structures, or perspective display effects.',
     'Focus only on the flat artwork itself.',
+    hasReferenceImages ? 'Use all provided reference images as design assets and integrate the key elements from each image into one coherent flat design.' : null,
+    hasReferenceImages ? 'Do not ignore any uploaded reference image. If one image is a main visual and another is a logo or supporting element, preserve and place them appropriately in the final composition.' : null,
     'All text must be in Chinese.',
     '',
     'Render ONLY the following text exactly as written. Do not add or modify any text.',
@@ -121,7 +123,7 @@ function buildPrompt(scene, userText) {
     '---',
   ];
 
-  return lines.filter(Boolean).join('\n');
+  return lines.filter(line => line != null).join('\n');
 }
 
 function buildEditPrompt(scene, userText, feedback = null) {
@@ -146,7 +148,7 @@ function buildEditPrompt(scene, userText, feedback = null) {
     '---',
   ];
 
-  return lines.filter(Boolean).join('\n');
+  return lines.filter(line => line != null).join('\n');
 }
 
 // 下载图片 URL 到 Buffer
@@ -233,9 +235,9 @@ async function generateImage(options) {
     ? referenceImage.filter(Boolean)
     : (referenceImage ? [referenceImage] : []);
   const { model: genModel, aspectRatio } = calcAspectRatio(width, height, quality);
-  const prompt = referenceImages.length > 0
+  const prompt = feedback
     ? buildEditPrompt(scene, userText, feedback)
-    : buildPrompt(scene, userText);
+    : buildPrompt(scene, userText, referenceImages.length > 0);
 
   for (let attempt = 0; attempt <= MAX_GENERATE_RETRIES; attempt++) {
     try {
