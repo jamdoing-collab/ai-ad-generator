@@ -104,12 +104,8 @@ function calcAspectRatio(width, height, quality = 'default') {
   return { model: MODEL, aspectRatio: '1:3' };
 }
 
-function buildPrompt(scene, userText, feedback = null) {
+function buildPrompt(scene, userText) {
   const desc = SCENE_DESCS[scene] || 'Commercial design.';
-  const safeFeedback = feedback ? String(feedback).slice(0, 100) : null;
-  const feedbackRule = safeFeedback
-    ? `User feedback on previous result: ${safeFeedback}\nPlease adjust accordingly.`
-    : '';
 
   const lines = [
     `${desc}`,
@@ -118,7 +114,6 @@ function buildPrompt(scene, userText, feedback = null) {
     'Do not show frames, supports, walls, store facades, shelves, spotlights, hanging structures, or perspective display effects.',
     'Focus only on the flat artwork itself.',
     'All text must be in Chinese.',
-    feedbackRule,
     '',
     'Render ONLY the following text exactly as written. Do not add or modify any text.',
     '---',
@@ -240,7 +235,7 @@ async function generateImage(options) {
   const { model: genModel, aspectRatio } = calcAspectRatio(width, height, quality);
   const prompt = referenceImage
     ? buildEditPrompt(scene, userText, feedback)
-    : buildPrompt(scene, userText, feedback);
+    : buildPrompt(scene, userText);
 
   for (let attempt = 0; attempt <= MAX_GENERATE_RETRIES; attempt++) {
     try {
