@@ -226,6 +226,7 @@ router.post('/image', async (req, res) => {
 
     // 处理参考图
     for (const ref of referenceImages) {
+      console.log(`[生成请求:${requestId}] 处理参考图 input=${String(ref).slice(0, 120)}`);
       if (ref.startsWith('data:')) {
         const base64Data = ref.replace(/^data:image\/\w+;base64,/, '');
         const buffer = Buffer.from(base64Data, 'base64');
@@ -237,15 +238,20 @@ router.post('/image', async (req, res) => {
         await fs.mkdir(tempDir, { recursive: true });
         await fs.writeFile(tempPath, buffer);
         await validateImageFormat(tempPath);
+        console.log(`[生成请求:${requestId}] 参考图 base64 写入并校验成功 path=${tempPath}`);
         referenceImagePaths.push(tempPath);
         tempReferenceImagePaths.push(tempPath);
       } else if (ref.startsWith('/uploads/')) {
         const resolved = await resolveUploadPath(ref);
+        console.log(`[生成请求:${requestId}] 参考图路径解析成功 path=${resolved}`);
         const stat = await fs.stat(resolved).catch(() => null);
         if (!stat) throw new Error('参考图文件不存在');
+        console.log(`[生成请求:${requestId}] 参考图文件存在 size=${stat.size}`);
         await validateImageFormat(resolved);
+        console.log(`[生成请求:${requestId}] 参考图文件格式校验成功 path=${resolved}`);
         referenceImagePaths.push(resolved);
       } else {
+        console.error(`[生成请求:${requestId}] 参考图格式不支持 value=${String(ref).slice(0, 120)}`);
         throw new Error('不支持的参考图格式');
       }
     }
@@ -253,8 +259,9 @@ router.post('/image', async (req, res) => {
     // 上传参考图到图床，获取公网 URL
     let referenceImageUrls = [];
     if (referenceImagePaths.length > 0) {
+      console.log(`[生成请求:${requestId}] 开始上传参考图 count=${referenceImagePaths.length}`);
       referenceImageUrls = await Promise.all(referenceImagePaths.map(uploadToImageHost));
-      console.log(`[生成请求:${requestId}] 图床上传成功`);
+      console.log(`[生成请求:${requestId}] 图床上传成功 urls=${referenceImageUrls.length}`);
     }
 
     // 调用 grsai 生成
