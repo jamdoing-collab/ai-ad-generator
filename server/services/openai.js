@@ -13,13 +13,13 @@ function getConfig() {
 
 // 物料统一数据源（前后端共享唯一来源）
 const MATERIALS = [
-  { key: 'door', name: '门头招牌', icon: '🏪', desc: 'Ultra-wide horizontal signboard design layout, large headline area, minimal but strong text hierarchy, very high long-distance readability, bold clean flat artwork for print production.', defaultW: 300, defaultH: 100 },
   { key: 'poster', name: '活动海报', icon: '📢', desc: 'Vertical promotional poster layout, strong visual hierarchy, bold headline area, clean flat print design.', defaultW: 40, defaultH: 60 },
   { key: 'menu', name: '餐饮菜单', icon: '🍜', desc: 'Restaurant menu flat layout, strong readability, clear category grouping, dish names and prices easy to scan, structured typography-first print-ready design.', defaultW: 21, defaultH: 30 },
   { key: 'rollup', name: '易拉宝', icon: '🎞️', desc: 'Tall vertical promotional layout, clear top-middle-bottom structure, strong headline at top, central hero visual, supporting information and contact area at bottom, flat print-ready banner artwork.', defaultW: 80, defaultH: 200 },
   { key: 'wall', name: '文化墙', icon: '🏢', desc: 'Wide horizontal modular information layout, multiple organized content blocks, suitable for corporate values, timeline, or culture messaging, flat large-format print-ready artwork.', defaultW: 300, defaultH: 150 },
-  { key: 'brochure', name: '宣传册封面', icon: '📒', desc: 'Brochure cover spread layout, editorial composition, clean premium typography, flat print-ready design.', defaultW: 42, defaultH: 29 },
+  { key: 'brochure', name: '宣传册封面', icon: '📒', desc: 'Brochure cover spread layout without a spine, editorial composition, clean premium typography, flat print-ready design.', defaultW: 42, defaultH: 29 },
   { key: 'flyer', name: '宣传单页', icon: '📄', desc: 'Promotional flyer flat layout, concise information blocks, clear call-to-action hierarchy, print-ready design.', defaultW: 21, defaultH: 30 },
+  { key: 'door', name: '门头招牌', icon: '🏪', desc: 'Ultra-wide horizontal signboard design layout, large headline area, minimal but strong text hierarchy, very high long-distance readability, bold clean flat artwork for print production.', defaultW: 300, defaultH: 100 },
   { key: 'ecom', name: '电商主图', icon: '🛒', desc: 'Square product-focused flat composition, strong product emphasis, clean promotional layout, e-commerce ready design.', defaultW: 1024, defaultH: 1024, unit: 'px' },
   { key: 'moment', name: '朋友圈配图', icon: '📱', desc: 'Square social-share flat composition, clean visual hierarchy, strong readability on mobile, share-ready design.', defaultW: 1024, defaultH: 1024, unit: 'px' },
 ];

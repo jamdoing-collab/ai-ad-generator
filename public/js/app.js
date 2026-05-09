@@ -1,13 +1,13 @@
 const API_BASE = '/api';
 // 与后端 openai.js MATERIALS 保持同步，仅 API 不可用时降级使用
 const FALLBACK_MATERIALS = [
-  { key: 'door', name: '门头招牌', icon: '🏪', defaultW: 300, defaultH: 100 },
   { key: 'poster', name: '活动海报', icon: '📢', defaultW: 40, defaultH: 60 },
   { key: 'menu', name: '餐饮菜单', icon: '🍜', defaultW: 21, defaultH: 30 },
   { key: 'rollup', name: '易拉宝', icon: '🎞️', defaultW: 80, defaultH: 200 },
   { key: 'wall', name: '文化墙', icon: '🏢', defaultW: 300, defaultH: 150 },
   { key: 'brochure', name: '宣传册封面', icon: '📒', defaultW: 42, defaultH: 29 },
   { key: 'flyer', name: '宣传单页', icon: '📄', defaultW: 21, defaultH: 30 },
+  { key: 'door', name: '门头招牌', icon: '🏪', defaultW: 300, defaultH: 100 },
   { key: 'ecom', name: '电商主图', icon: '🛒', defaultW: 1024, defaultH: 1024, unit: 'px' },
   { key: 'moment', name: '朋友圈配图', icon: '📱', defaultW: 1024, defaultH: 1024, unit: 'px' },
 ];
