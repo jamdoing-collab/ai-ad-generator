@@ -30,6 +30,7 @@ let toastTimer = null;
 let pendingMineAfterLogin = false;
 let inviteInfo = null;
 let pendingInviteCode = localStorage.getItem('inviteCode') || '';
+let currentSharedDetail = null;
 
 const $ = id => document.getElementById(id);
 
@@ -336,13 +337,16 @@ async function loadUserInfo() {
     userInfo = res.data;
     authExpiredNotified = false;
     updateMineDisplay();
-    const shareId = getShareImageId();
-    if (shareId) {
-      loadPublicDetailById(shareId);
+    if (currentSharedDetail && getShareImageId()) {
+      const canEdit = Boolean(userInfo && currentSharedDetail.ownerUserId === userInfo.id);
+      applyHistoryDetailView(currentSharedDetail, { canEdit, title: '详情' });
     }
   } else if (res.code !== 401) {
     userInfo = null;
     updateMineDisplay();
+    if (currentSharedDetail && getShareImageId()) {
+      applyHistoryDetailView(currentSharedDetail, { canEdit: false, title: '详情' });
+    }
   }
 }
 
@@ -987,6 +991,7 @@ async function loadPublicDetailById(imageId) {
   }
 
   const item = res.data;
+   currentSharedDetail = item;
   const canEdit = Boolean(userInfo && item.ownerUserId === userInfo.id);
   detailReturnTarget = 'generate';
 
