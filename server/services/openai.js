@@ -131,7 +131,7 @@ function buildEditPrompt(scene, userText, feedback = null) {
   const safeFeedback = feedback ? String(feedback).slice(0, 100) : null;
   const feedbackRule = safeFeedback
     ? `Requested changes:\n${safeFeedback}`
-    : '';
+    : null;
 
   const lines = [
     'Edit the provided image with minimal necessary changes.',

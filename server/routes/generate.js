@@ -126,7 +126,12 @@ function resolveUploadPath(uploadPath) {
     throw new Error('非法参考图路径');
   }
 
-  return resolvedPath;
+  return fs.realpath(resolvedPath).then(realPath => {
+    if (!realPath.startsWith(resolvedRoot + path.sep) && realPath !== resolvedRoot) {
+      throw new Error('非法参考图路径');
+    }
+    return realPath;
+  });
 }
 
 // 生成图片
@@ -143,6 +148,7 @@ router.post('/image', async (req, res) => {
 
   try {
     const { scene, text, width = 60, height = 90, quality = 'default', referenceImage, feedback } = req.body;
+    const feedbackText = feedback ? String(feedback).trim() || null : null;
     const referenceImages = Array.isArray(referenceImage)
       ? referenceImage.filter(Boolean).slice(0, 3)
       : (referenceImage ? [referenceImage] : []);
@@ -187,7 +193,7 @@ router.post('/image', async (req, res) => {
       height: parsedHeight,
       quality: qualityLevel,
       referenceImage: referenceImages,
-      feedback: (feedback && typeof feedback.trim === 'function') ? feedback.trim() : null
+      feedback: feedbackText
     });
 
     const cached = recentGenerateResults.get(generateRequestKey);
@@ -234,16 +240,11 @@ router.post('/image', async (req, res) => {
         referenceImagePaths.push(tempPath);
         tempReferenceImagePaths.push(tempPath);
       } else if (ref.startsWith('/uploads/')) {
-        const resolved = resolveUploadPath(ref);
+        const resolved = await resolveUploadPath(ref);
         const stat = await fs.stat(resolved).catch(() => null);
         if (!stat) throw new Error('参考图文件不存在');
-        const realPath = await fs.realpath(resolved);
-        const resolvedRoot = path.resolve(uploadsRoot);
-        if (!realPath.startsWith(resolvedRoot + path.sep) && realPath !== resolvedRoot) {
-          throw new Error('非法参考图路径');
-        }
-        await validateImageFormat(realPath);
-        referenceImagePaths.push(realPath);
+        await validateImageFormat(resolved);
+        referenceImagePaths.push(resolved);
       } else {
         throw new Error('不支持的参考图格式');
       }
@@ -264,7 +265,7 @@ router.post('/image', async (req, res) => {
       height: parsedHeight,
       quality: qualityLevel,
       referenceImage: referenceImageUrls,
-      feedback: (feedback && typeof feedback.trim === 'function') ? feedback.trim() : null
+      feedback: feedbackText
     });
     console.log(`[生成请求:${requestId}] grsai 成功返回 images=${generatedImages.length}`);
     
