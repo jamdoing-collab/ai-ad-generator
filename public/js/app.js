@@ -30,6 +30,7 @@ let pendingMineAfterLogin = false;
 let inviteInfo = null;
 let pendingInviteCode = localStorage.getItem('inviteCode') || '';
 let currentSharedDetail = null;
+let detailRetryAction = null;
 
 const $ = id => document.getElementById(id);
 
@@ -51,6 +52,28 @@ function setText(id, value) {
 function setDisplay(id, value) {
   const element = $(id);
   if (element) element.style.display = value;
+}
+
+function showDetailLoading(text, subtext) {
+  setText('loadingText', text || 'AI创作中...');
+  setText('loadingSub', subtext || '预计需要15-30秒');
+  setDisplay('loadingWrap', 'flex');
+  setDisplay('detailWrap', 'none');
+  setDisplay('errorState', 'none');
+}
+
+function showDetailError(message, retryAction) {
+  $('errorMsg').textContent = message || '请求失败，请稍后重试';
+  detailRetryAction = typeof retryAction === 'function' ? retryAction : null;
+  setDisplay('loadingWrap', 'none');
+  setDisplay('detailWrap', 'none');
+  setDisplay('errorState', 'flex');
+}
+
+function showDetailContent() {
+  setDisplay('loadingWrap', 'none');
+  setDisplay('errorState', 'none');
+  setDisplay('detailWrap', '');
 }
 
 function getCurrentCost() {
@@ -435,6 +458,10 @@ function bindMobileEvents() {
   $('copyInviteBtn').addEventListener('click', copyInviteLink);
 
   $('retryBtn').addEventListener('click', () => {
+    if (typeof detailRetryAction === 'function') {
+      detailRetryAction();
+      return;
+    }
     showPage('generate');
   });
   $('detailSaveBtn').addEventListener('click', downloadImage);
@@ -764,15 +791,9 @@ async function startGenerate() {
   const width = parseFloat($('sizeWidth').value);
   const height = parseFloat($('sizeHeight').value);
 
-  $('loadingWrap').style.display = 'flex';
-  $('detailWrap').style.display = 'none';
-  $('errorState').style.display = 'none';
+  showDetailLoading(msg.text, msg.sub);
   $('genBtn').disabled = true;
   $('genBtn').textContent = '生成中...';
-
-  const msg = getCurrentQualityConfig();
-  $('loadingText').textContent = msg.text;
-  $('loadingSub').textContent = msg.sub;
 
   showPage('historyDetail');
 
@@ -802,8 +823,7 @@ async function startGenerate() {
         localPaths: res.data.images.map(img => img.localPath || ''),
         createdAt: res.data.createdAt || ''
       };
-      $('loadingWrap').style.display = 'none';
-      $('detailWrap').style.display = '';
+      showDetailContent();
       updateMineDisplay();
       detailReturnTarget = 'generate';
       applyHistoryDetailView(item, { canEdit: true, title: '详情' });
@@ -822,14 +842,9 @@ async function startGenerate() {
       showPage('generate');
     } else if (err.message && err.message.includes('正在生成中')) {
       showToast(err.message);
-      $('loadingWrap').style.display = 'flex';
-      $('detailWrap').style.display = 'none';
-      $('errorState').style.display = 'none';
+      showDetailLoading(msg.text, msg.sub);
     } else {
-      $('loadingWrap').style.display = 'none';
-      $('detailWrap').style.display = 'none';
-      $('errorState').style.display = 'flex';
-      $('errorMsg').textContent = err.message || '生成请求失败，请稍后重试';
+      showDetailError(err.message || '生成请求失败，请稍后重试', startGenerate);
     }
   } finally {
     isGenerating = false;
@@ -851,12 +866,7 @@ async function regenerateCurrentDetail(mode) {
   $('modifySubmitBtn').textContent = '重新生成中...';
   closeModifyModal();
 
-  if (mode === 'history') {
-    $('loadingSub').textContent = '正在基于当前作品重新生成';
-  }
-  $('loadingWrap').style.display = 'flex';
-  $('detailWrap').style.display = 'none';
-  $('errorState').style.display = 'none';
+  showDetailLoading('AI创作中...', '正在基于当前作品重新生成');
 
   const refSrc = currentResultImagesPath.filter(Boolean).length
     ? currentResultImagesPath.filter(Boolean)
@@ -893,8 +903,7 @@ async function regenerateCurrentDetail(mode) {
       });
 
       if (mode === 'history') {
-        $('loadingWrap').style.display = 'none';
-        $('detailWrap').style.display = '';
+        showDetailContent();
         $('detailImg').src = currentResultImages[0];
         waitForImageLoad(currentResultImages[0]).catch(() => {
           showToast('修改成功，但结果图片加载失败，请稍后重试查看历史记录');
@@ -916,12 +925,12 @@ async function regenerateCurrentDetail(mode) {
   } catch (err) {
     if (err.message && err.message.includes('正在生成中')) {
       showToast(err.message);
-    } else {
-      showToast(err.message || '调整失败，请重试');
     }
+    showDetailError(err.message || '调整失败，请重试', () => regenerateCurrentDetail(mode));
   } finally {
-    $('loadingWrap').style.display = 'none';
-    $('detailWrap').style.display = '';
+    if (!($('errorState').style.display === 'flex')) {
+      showDetailContent();
+    }
     isGenerating = false;
     $('modifySubmitBtn').disabled = false;
     $('modifySubmitBtn').textContent = '重新生成';
@@ -958,7 +967,7 @@ function setDetailActionsVisible(canEdit) {
 async function loadHistoryDetailById(imageId) {
   const res = await api(`/generate/history/${imageId}`);
   if (res.code !== 0 || !res.data) {
-    showToast(res.message || '历史详情加载失败');
+    showDetailError(res.message || '历史详情加载失败', () => loadHistoryDetailById(imageId));
     return;
   }
   applyHistoryDetailView(res.data, { canEdit: true, title: '详情' });
@@ -967,7 +976,7 @@ async function loadHistoryDetailById(imageId) {
 async function loadPublicDetailById(imageId) {
   const res = await api(`/generate/public/${imageId}`);
   if (res.code !== 0 || !res.data) {
-    showToast(res.message || '分享详情加载失败');
+    showDetailError(res.message || '分享详情加载失败', () => loadPublicDetailById(imageId));
     return;
   }
 
