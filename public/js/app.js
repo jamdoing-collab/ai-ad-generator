@@ -71,6 +71,7 @@ function showDetailError(message, retryAction) {
 }
 
 function showDetailContent() {
+  detailRetryAction = null;
   setDisplay('loadingWrap', 'none');
   setDisplay('errorState', 'none');
   setDisplay('detailWrap', '');
@@ -790,6 +791,7 @@ async function startGenerate() {
   const text = $('textInput').value.trim();
   const width = parseFloat($('sizeWidth').value);
   const height = parseFloat($('sizeHeight').value);
+  const msg = getCurrentQualityConfig();
 
   showDetailLoading(msg.text, msg.sub);
   $('genBtn').disabled = true;
