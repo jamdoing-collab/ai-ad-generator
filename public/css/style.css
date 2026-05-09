@@ -830,7 +830,13 @@ margin-bottom: 0;
 }
 
 .history-empty-actions {
+  width: 100%;
+  max-width: 280px;
   margin-top: 18px;
+}
+
+.history-empty-actions .btn-primary {
+  width: 100%;
 }
 
 .detail-share-btn {
