@@ -879,6 +879,7 @@ async function regenerateCurrentDetail(mode) {
         width: currentResultWidth,
         height: currentResultHeight,
         quality: currentResultQuality,
+        sourceImageId: currentResultImageId,
         referenceImage: refSrc,
         feedback: feedback ? feedback : null
       })

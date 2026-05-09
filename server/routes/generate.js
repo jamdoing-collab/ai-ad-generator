@@ -163,7 +163,7 @@ router.post('/image', async (req, res) => {
   let generateRequestKey = null;
 
   try {
-    const { scene, text, width = 60, height = 90, quality = 'default', referenceImage, feedback } = req.body;
+    const { scene, text, width = 60, height = 90, quality = 'default', referenceImage, feedback, sourceImageId = null } = req.body;
     const feedbackText = feedback ? String(feedback).trim() || null : null;
     const referenceImages = Array.isArray(referenceImage)
       ? referenceImage.filter(Boolean).slice(0, 3)
@@ -208,6 +208,7 @@ router.post('/image', async (req, res) => {
       width: parsedWidth,
       height: parsedHeight,
       quality: qualityLevel,
+      sourceImageId,
       referenceImage: referenceImages,
       feedback: feedbackText
     });
@@ -321,7 +322,8 @@ router.post('/image', async (req, res) => {
         try { await fs.unlink(path.join(uploadsRoot, p.replace(/^\/uploads\//, ''))); } catch {
         }
       }
-      return res.status(500).json({ code: 500, message: '生成成功但保存记录失败，请联系客服' });
+      saveErr.message = '生成成功但保存记录失败，请联系客服';
+      throw saveErr;
     }
 
     console.log(`[生成请求:${requestId}] 数据库保存成功 imageId=${imageId}`);
