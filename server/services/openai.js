@@ -51,14 +51,13 @@ const RATIO_PRESETS = [
   { ratio: 1 / 3, value: '1:3' },
 ];
 
-function calcPixelSize(width, height, maxEdge = 2048) {
+function calcPixelSizeFromRatio(ratio, maxEdge = 2048) {
   const MAX_EDGE = maxEdge;
   const MIN_EDGE = 256;
   const MAX_RATIO = 3;
   const MIN_TOTAL = 262144;
   const MAX_TOTAL = 4194304;
 
-  let ratio = width / height;
   if (ratio > MAX_RATIO) ratio = MAX_RATIO;
   if (ratio < 1 / MAX_RATIO) ratio = 1 / MAX_RATIO;
 
@@ -90,17 +89,19 @@ function calcPixelSize(width, height, maxEdge = 2048) {
 }
 
 function calcAspectRatio(width, height, quality = 'default') {
-  if (quality === '2k') {
-    return { model: 'gpt-image-2-vip', aspectRatio: calcPixelSize(width, height, 2048) };
-  }
-  if (quality === '4k') {
-    return { model: 'gpt-image-2-vip', aspectRatio: calcPixelSize(width, height, 3840) };
-  }
   const ratio = width / height;
   const nearest = RATIO_PRESETS.reduce((best, current) => {
     if (!best) return current;
     return Math.abs(ratio - current.ratio) < Math.abs(ratio - best.ratio) ? current : best;
   }, null);
+  const nearestRatio = nearest?.ratio || 1;
+
+  if (quality === '2k') {
+    return { model: 'gpt-image-2-vip', aspectRatio: calcPixelSizeFromRatio(nearestRatio, 2048) };
+  }
+  if (quality === '4k') {
+    return { model: 'gpt-image-2-vip', aspectRatio: calcPixelSizeFromRatio(nearestRatio, 3840) };
+  }
   return { model: MODEL, aspectRatio: nearest?.value || '1:1' };
 }
 
