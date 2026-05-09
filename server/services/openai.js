@@ -29,7 +29,7 @@ const SCENE_DESCS = Object.fromEntries(
 );
 
 // 根据物料宽高比选择 grsai aspectRatio（与 grsai 支持的预设完全对齐）
-// gpt-image-2-vip: 动态计算像素值（OpenAI 约束：边长≤3840，16的倍数，长短边比≤3:1，总像素655360~8294400）
+// gpt-image-2-vip: 动态计算像素值（当前实现采用更保守的总像素上限，边长≤3840，16的倍数，长短边比≤3:1，总像素约 262144~4194304）
 // gpt-image-2: 预设比例字符串。标准画质下根据用户尺寸选择“最接近”的支持比例。
 const RATIO_PRESETS = [
   // 横版（ratio > 1）
@@ -204,7 +204,7 @@ async function parseStreamResponse(response) {
           throw new Error(data.msg || data.error || 'API 请求失败');
         }
       } catch (e) {
-        if (e.message !== 'skip') throw e;
+        if (!(e instanceof SyntaxError)) throw e;
       }
     }
   }
@@ -216,7 +216,7 @@ async function parseStreamResponse(response) {
       if (data.status === 'succeeded' || data.status === 'failed') return { result: data, taskId };
       if (data.code !== undefined && data.code !== 0) throw new Error(data.msg || data.error || 'API 请求失败');
     } catch (e) {
-      if (e.message && !e.message.includes('JSON')) throw e;
+      if (!(e instanceof SyntaxError)) throw e;
     }
   }
   return { result: null, taskId };
@@ -376,7 +376,7 @@ async function pollResult(baseURL, apiKey, taskId) {
       return data;
     }
   }
-  throw new Error('生成超时（3分钟）');
+  throw new Error('生成超时（10分钟）');
 }
 
 module.exports = {
