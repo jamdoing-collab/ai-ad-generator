@@ -163,7 +163,7 @@ function applyDetailResult({ scene, text, width, height, quality = 'default', im
 
 function openModifyModal(mode) {
   currentDetailMode = mode;
-  setText('modifyModalTitle', mode === 'history' ? '修改历史图片' : '修改当前图片');
+  setText('modifyModalTitle', '修改图片');
   setText('modifyCost', getCurrentCost());
   if ($('modifyFeedbackInput')) $('modifyFeedbackInput').value = '';
   if ($('modifySubmitBtn')) {
@@ -805,26 +805,21 @@ async function startGenerate() {
 
     if (res.code === 0) {
       if (!res.data.images?.length) throw new Error('生成结果为空，请重试');
-      applyDetailResult({
+      const item = {
+        id: res.data.imageId || null,
         scene: currentMaterial.key,
-        text,
+        prompt: text,
         width,
         height,
         quality: selectedQuality,
-        images: res.data.images,
-        imageId: res.data.imageId || null,
-        points: res.data.points,
-        mode: 'result'
-      });
+        imagePaths: res.data.images.map(img => img.url),
+        localPaths: res.data.images.map(img => img.localPath || ''),
+        createdAt: new Date().toISOString()
+      };
       $('loadingWrap').style.display = 'none';
-      $('resultWrap').style.display = 'flex';
-      showResultImage(0);
-      window.location.hash = `result-${currentResultImageId}`;
       updateMineDisplay();
-
-      waitForImageLoad(currentResultImages[0]).catch(() => {
-        showToast('生成成功，但结果图片加载失败，请稍后重试查看历史记录');
-      });
+      loadHistoryDetail(item);
+      window.location.hash = `history-${currentResultImageId}`;
     } else {
       const msg = res.code === 503
         ? '服务未配置密钥，请联系管理员'
