@@ -1,15 +1,15 @@
 const API_BASE = '/api';
 // 与后端 openai.js MATERIALS 保持同步，仅 API 不可用时降级使用
 const FALLBACK_MATERIALS = [
-  { key: 'door', name: '门头招牌', icon: '🏪', defaultW: 300, defaultH: 100, defaultAspectRatio: '3:1' },
-  { key: 'poster', name: '活动海报', icon: '📢', defaultW: 40, defaultH: 60, defaultAspectRatio: '2:3' },
-  { key: 'menu', name: '餐饮菜单', icon: '🍜', defaultW: 21, defaultH: 30, defaultAspectRatio: '2:3' },
-  { key: 'rollup', name: '易拉宝', icon: '🎞️', defaultW: 80, defaultH: 200, defaultAspectRatio: '2:5' },
-  { key: 'wall', name: '文化墙', icon: '🏢', defaultW: 300, defaultH: 150, defaultAspectRatio: '2:1' },
-  { key: 'brochure', name: '宣传册封面', icon: '📒', defaultW: 42, defaultH: 29, defaultAspectRatio: '3:2' },
-  { key: 'flyer', name: '宣传单页', icon: '📄', defaultW: 21, defaultH: 30, defaultAspectRatio: '2:3' },
-  { key: 'ecom', name: '电商主图', icon: '🛒', defaultW: 1024, defaultH: 1024, unit: 'px', defaultAspectRatio: '1:1' },
-  { key: 'moment', name: '朋友圈配图', icon: '📱', defaultW: 1024, defaultH: 1024, unit: 'px', defaultAspectRatio: '1:1' },
+  { key: 'door', name: '门头招牌', icon: '🏪', defaultW: 300, defaultH: 100 },
+  { key: 'poster', name: '活动海报', icon: '📢', defaultW: 40, defaultH: 60 },
+  { key: 'menu', name: '餐饮菜单', icon: '🍜', defaultW: 21, defaultH: 30 },
+  { key: 'rollup', name: '易拉宝', icon: '🎞️', defaultW: 80, defaultH: 200 },
+  { key: 'wall', name: '文化墙', icon: '🏢', defaultW: 300, defaultH: 150 },
+  { key: 'brochure', name: '宣传册封面', icon: '📒', defaultW: 42, defaultH: 29 },
+  { key: 'flyer', name: '宣传单页', icon: '📄', defaultW: 21, defaultH: 30 },
+  { key: 'ecom', name: '电商主图', icon: '🛒', defaultW: 1024, defaultH: 1024, unit: 'px' },
+  { key: 'moment', name: '朋友圈配图', icon: '📱', defaultW: 1024, defaultH: 1024, unit: 'px' },
 ];
 let MATERIALS = FALLBACK_MATERIALS;
 
@@ -577,7 +577,7 @@ async function selectMaterial(index) {
   const unit = currentMaterial.unit || 'cm';
   document.querySelectorAll('.size-unit').forEach(el => el.textContent = unit);
   $('sizeHint').classList.remove('error');
-  $('sizeHint').textContent = `生成比例 ${currentMaterial.defaultAspectRatio || await calcAspectRatio(currentMaterial.defaultW, currentMaterial.defaultH)}`;
+  $('sizeHint').textContent = `生成比例 ${await calcAspectRatio(currentMaterial.defaultW, currentMaterial.defaultH)}`;
 
   // 保持当前画质选择，更新提示文案
   const config = getCurrentQualityConfig();
