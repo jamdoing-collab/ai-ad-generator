@@ -125,28 +125,17 @@ function buildPrompt(scene, userText) {
 }
 
 function buildEditPrompt(scene, userText, feedback = null) {
-  const desc = SCENE_DESCS[scene] || 'Commercial design.';
   const safeFeedback = feedback ? String(feedback).slice(0, 100) : null;
   const feedbackRule = safeFeedback
     ? `Requested changes:\n${safeFeedback}`
     : '';
 
   const lines = [
-    `This image is a ${desc.toLowerCase().trim()}`,
     'Edit the provided image with minimal necessary changes.',
     'Preserve the original layout, composition, hierarchy, typography placement, and key visual elements as much as possible.',
     'Do not redesign the whole image unless the requested changes require it.',
     'Only modify the aspects explicitly requested below.',
-    'Keep the output as a flat, print-ready 2D design draft only.',
-    'Do not turn it into a mockup, photographed real-world setup, display stand, storefront scene, wall scene, lighting scene, or any environmental rendering.',
-    'Do not add frames, supports, walls, store facades, spotlights, room perspective, or physical presentation context.',
-    'All text in the image must remain in Chinese.',
     feedbackRule,
-    '',
-    'Keep the following text exactly unchanged. Do not add, remove, or rewrite any text.',
-    '---',
-    userText.trim(),
-    '---',
   ];
 
   return lines.filter(Boolean).join('\n');
