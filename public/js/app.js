@@ -262,7 +262,7 @@ async function api(endpoint, options = {}) {
   if (data.code === 401) {
     userInfo = null;
     updateMineDisplay();
-    if (!authExpiredNotified) {
+    if (!authExpiredNotified && !getShareImageId()) {
       authExpiredNotified = true;
       alert('登录状态校验失败，请重新登录');
       showLoginModal();
@@ -454,6 +454,10 @@ function bindMobileEvents() {
     $('fullscreenImg').src = $('resultImg').src;
     $('fullscreenViewer').style.display = 'flex';
   });
+  $('historyDetailImg').addEventListener('click', () => {
+    $('fullscreenImg').src = $('historyDetailImg').src;
+    $('fullscreenViewer').style.display = 'flex';
+  });
   $('fullscreenClose').addEventListener('click', () => {
     $('fullscreenViewer').style.display = 'none';
   });
@@ -494,6 +498,7 @@ function bindMobileEvents() {
   $('historyDetailSaveBtn').addEventListener('click', downloadImage);
   $('historyDetailModifyBtn').addEventListener('click', () => openModifyModal('history'));
   $('historyDetailShareBtn').addEventListener('click', () => copyText(getCurrentDetailShareLink(), '详情页链接已复制'));
+  $('historyDetailLoginBtn').addEventListener('click', () => showLoginModal());
 
   $('contactBtn').addEventListener('click', () => {
     setDisplay('contactModal', 'flex');
@@ -965,8 +970,12 @@ function showPage(page) {
 }
 
 function setDetailActionsVisible(canEdit) {
+  const isShare = Boolean(getShareImageId());
   setDisplay('modifyBtn', canEdit ? '' : 'none');
   setDisplay('historyDetailModifyBtn', canEdit ? '' : 'none');
+  setDisplay('historyDetailSaveBtn', isShare ? 'none' : '');
+  setDisplay('historyDetailShareBtn', isShare ? 'none' : '');
+  setDisplay('historyDetailLoginBtn', isShare && !canEdit ? 'block' : 'none');
 }
 
 async function loadHistoryDetailById(imageId) {
