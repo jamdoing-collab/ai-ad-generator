@@ -152,7 +152,7 @@ function resolveUploadPath(uploadPath) {
 }
 
 // 生成图片
-router.post('/image', async (req, res) => {
+router.post('/image', generateRateLimit, async (req, res) => {
   if (!req.userId) {
     return res.status(401).json({ code: 401, message: '未登录' });
   }
