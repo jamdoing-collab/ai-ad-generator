@@ -150,6 +150,7 @@ function applyHistoryDetailView(item, { canEdit = false, title = '详情' } = {}
   updateTweakCost();
   renderResultDetailMeta();
   showPage('historyDetail');
+  showDetailContent();
 
   if (fullUrl) {
     waitForImageLoad(fullUrl).catch(() => {
