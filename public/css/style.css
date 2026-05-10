@@ -125,22 +125,11 @@ align-items: center;
 gap: 12px;
 }
 
-.brand-mark {
+.brand-icon {
 width: 40px;
 height: 40px;
-border-radius: 12px;
-display: inline-flex;
-align-items: center;
-justify-content: center;
+display: block;
 flex-shrink: 0;
-background: linear-gradient(135deg, var(--primary) 0%, #e29a54 100%);
-box-shadow: 0 12px 24px rgba(196, 104, 44, 0.22);
-}
-
-.brand-mark img {
- width: 72%;
- height: 72%;
-  display: block;
 }
 
 .brand-copy {
@@ -844,10 +833,21 @@ margin-bottom: 0;
 }
 
 .modify-textarea {
+  width: 100%;
   min-height: 110px;
   padding: 12px 14px;
+  border: 1px solid rgba(104, 76, 43, 0.14);
+  border-radius: var(--radius-md);
+  background: #fff;
+  color: var(--text);
   resize: vertical;
+  outline: none;
   line-height: 1.6;
+}
+
+.modify-textarea:focus {
+  border-color: var(--primary);
+  box-shadow: var(--ring-primary);
 }
 
 .modify-hint {
