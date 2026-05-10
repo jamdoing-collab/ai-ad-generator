@@ -31,12 +31,10 @@ let inviteInfo = null;
 let pendingInviteCode = localStorage.getItem('inviteCode') || '';
 let currentSharedDetail = null;
 let detailRetryAction = null;
+const CONTACT_WECHAT_ID = 'jamw2014';
+const CONTACT_QR_IMAGE = '/images/contact-wechat-qr.jpg';
 
 const $ = id => document.getElementById(id);
-
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
 
 const HTML_ESCAPE_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 
@@ -235,6 +233,28 @@ function showToast(message) {
   toastTimer = window.setTimeout(() => {
     toast.classList.remove('show');
   }, 2200);
+}
+
+function openContactModal({ title = '联系客服', description = '添加客服微信', wechat = CONTACT_WECHAT_ID, qrImage = CONTACT_QR_IMAGE } = {}) {
+  setText('contactModalTitle', title);
+  setText('contactModalDesc', description);
+  setText('contactWechat', wechat);
+
+  const qrWrap = $('contactQrWrap');
+  const qrImageEl = $('contactQrImage');
+  if (qrWrap && qrImageEl) {
+    if (qrImage) {
+      qrImageEl.src = qrImage;
+      qrImageEl.alt = `${title}二维码`;
+      setDisplay('contactQrWrap', 'flex');
+    } else {
+      qrImageEl.removeAttribute('src');
+      qrImageEl.alt = '客服二维码';
+      setDisplay('contactQrWrap', 'none');
+    }
+  }
+
+  setDisplay('contactModal', 'flex');
 }
 
 function fallbackCopy(text, successMessage = '已复制') {
@@ -510,7 +530,7 @@ function bindMobileEvents() {
   $('detailLoginBtn').addEventListener('click', () => showLoginModal());
 
   $('contactBtn').addEventListener('click', () => {
-    setDisplay('contactModal', 'flex');
+    openContactModal();
   });
 
   $('loginModalClose').addEventListener('click', hideLoginModal);
@@ -1146,55 +1166,13 @@ function renderPackages() {
 async function doRecharge() {
   const pkg = packages[selectedPackageIndex];
   if (!pkg) return;
-
-  if ($('payBtn')) {
-    $('payBtn').disabled = true;
-    $('payBtn').textContent = '支付确认中...';
-  }
-
-  try {
-    const res = await api('/payment/create', {
-      method: 'POST',
-      body: JSON.stringify({ packageId: pkg.id })
-    });
-
-    if (res.code !== 0) {
-      throw new Error(res.message || '创建订单失败');
-    }
-
-    let confirmed = false;
-    for (let attempt = 0; attempt < 8; attempt += 1) {
-      await sleep(attempt === 0 ? 1800 : 1000);
-      const confirmRes = await api('/payment/confirm', {
-        method: 'POST',
-        body: JSON.stringify({ orderId: res.data.orderId })
-      });
-
-      if (confirmRes.code !== 0) {
-        throw new Error(confirmRes.message || '支付状态查询失败');
-      }
-
-      if (confirmRes.data.success) {
-        confirmed = true;
-        break;
-      }
-    }
-
-    if (!confirmed) {
-      throw new Error('支付处理中，请稍后在点数余额中确认');
-    }
-
-    await loadUserInfo();
-    $('rechargeModal').style.display = 'none';
-    showToast(`充值成功！${pkg.points}点已到账`);
-  } catch (err) {
-    showToast(err.message || '支付失败');
-  } finally {
-    if ($('payBtn')) {
-      $('payBtn').disabled = false;
-      $('payBtn').textContent = '立即支付';
-    }
-  }
+  setDisplay('rechargeModal', 'none');
+  openContactModal({
+    title: '联系客服充值',
+    description: `当前选择 ${pkg.points} 点（¥${pkg.price}），请直接联系客服完成充值。`,
+    wechat: CONTACT_WECHAT_ID,
+    qrImage: CONTACT_QR_IMAGE,
+  });
 }
 
 $('payBtn')?.addEventListener('click', doRecharge);

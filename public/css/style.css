@@ -1507,6 +1507,26 @@ font-weight: 600;
 letter-spacing: 0.04em;
 }
 
+.contact-qr {
+margin: 0 auto 16px;
+width: 180px;
+height: 180px;
+border-radius: 16px;
+background: var(--surface-soft);
+border: 1px dashed rgba(104, 76, 43, 0.2);
+display: flex;
+align-items: center;
+justify-content: center;
+overflow: hidden;
+}
+
+.contact-qr img {
+width: 100%;
+height: 100%;
+object-fit: cover;
+display: block;
+}
+
 .global-toast {
 position: fixed;
 left: 50%;

@@ -310,11 +310,14 @@
 <div class="modal" id="contactModal" style="display: none;">
 <div class="modal-content">
   <div class="modal-header">
-    <h3>联系客服</h3>
+    <h3 id="contactModalTitle">联系客服</h3>
     <span class="modal-close" id="contactModalClose">×</span>
   </div>
   <div class="contact-content">
-    <p>添加客服微信</p>
+    <p id="contactModalDesc">添加客服微信</p>
+    <div class="contact-qr" id="contactQrWrap" style="display:none;">
+      <img id="contactQrImage" src="" alt="客服二维码">
+    </div>
     <div class="contact-wechat" id="contactWechat">jamw2014</div>
     <button class="btn-primary" id="copyWechatBtn">复制微信号</button>
   </div>
@@ -388,8 +391,8 @@
     <div class="help-section">
       <div class="help-step-num">5</div>
       <div class="help-step-body">
-        <div class="help-step-title">查看结果</div>
-        <div class="help-step-desc">生成完成后可预览大图、下载保存，不满意可重新生成</div>
+        <div class="help-step-title">查看结果并继续修改</div>
+        <div class="help-step-desc">生成完成后可预览大图、下载保存，也可以输入修改要求继续调整。若修改要求涉及增加或删除内容，系统会在尽量保留原设计风格的前提下自动重新平衡版式。</div>
       </div>
     </div>
 
@@ -403,7 +406,11 @@
       </div>
       <div class="help-faq-item">
         <div class="help-faq-q">点数怎么获得？</div>
-        <div class="help-faq-a">新用户注册赠送免费点数，也可以在个人中心复制邀请链接，邀请好友注册并完成首次生成后获得奖励点数</div>
+        <div class="help-faq-a">新用户注册赠送免费点数，也可以在个人中心复制邀请链接，邀请好友注册并完成首次生成后获得奖励点数；点数不足时，可在个人中心选择套餐后联系客服充值。</div>
+      </div>
+      <div class="help-faq-item">
+        <div class="help-faq-q">怎么充值点数？</div>
+        <div class="help-faq-a">在个人中心点击“充值”，选择点数套餐后点击“立即支付”，系统会弹出客服联系方式和二维码。请直接联系客服完成充值，确认后即可到账。</div>
       </div>
       <div class="help-faq-item">
         <div class="help-faq-q">生成的图片可以商用吗？</div>
