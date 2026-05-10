@@ -181,15 +181,15 @@ function openModifyModal(mode) {
   setText('modifyCost', getCurrentCost());
   if ($('modifyFeedbackInput')) $('modifyFeedbackInput').value = '';
   if ($('modifySubmitBtn')) {
-    $('modifySubmitBtn').disabled = false;
-    $('modifySubmitBtn').textContent = '再生成一张';
+    $('modifySubmitBtn').disabled = true;
+    $('modifySubmitBtn').textContent = '确认修改';
   }
   setDisplay('modifyModal', 'flex');
 }
 
 function updateModifySubmitLabel() {
   if (!$('modifySubmitBtn') || !$('modifyFeedbackInput')) return;
-  $('modifySubmitBtn').textContent = $('modifyFeedbackInput').value.trim() ? '应用修改并生成' : '再生成一张';
+  $('modifySubmitBtn').disabled = !$('modifyFeedbackInput').value.trim();
 }
 
 function closeModifyModal() {
@@ -515,7 +515,7 @@ function bindMobileEvents() {
   });
 
   $('historyBtn').addEventListener('click', loadHistory);
-  $('historyDetailBackBtn').addEventListener('click', () => {
+  $('historyDetailBackBtn').addEventListener('click', async () => {
     if (isGenerating) { showToast('正在生成中，请稍候'); return; }
     if (getShareImageId()) {
       history.replaceState(null, '', window.location.pathname);
@@ -525,6 +525,10 @@ function bindMobileEvents() {
     if (window.location.hash.startsWith('#history-')) history.replaceState(null, '', window.location.pathname + window.location.search);
     if (detailReturnTarget === 'generate') {
       resetForm();
+    }
+    if (detailReturnTarget === 'history') {
+      await loadHistory();
+      return;
     }
     showPage(detailReturnTarget);
   });
@@ -882,6 +886,7 @@ async function regenerateCurrentDetail(mode) {
   if (!authToken || !userInfo) { showLoginModal(); return; }
 
   const feedback = ($('modifyFeedbackInput').value || '').trim();
+  if (!feedback) { showToast('请输入修改要求'); return; }
   const needPoints = getCurrentCost();
   if (userInfo.points < needPoints) { showToast('点数不足，请充值'); showRechargeModal(); return; }
 
