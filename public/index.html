@@ -51,14 +51,14 @@
       <div class="size-row">
         <div class="size-input-wrap" id="widthWrap">
           <button class="size-step" type="button" data-target="sizeWidth" data-step="-1" aria-label="减少宽度">−</button>
-          <input class="size-input" id="sizeWidth" type="number" placeholder="宽" value="60">
+          <input class="size-input" id="sizeWidth" type="number" inputmode="decimal" placeholder="宽" value="60">
           <span class="size-unit">cm</span>
           <button class="size-step" type="button" data-target="sizeWidth" data-step="1" aria-label="增加宽度">+</button>
         </div>
         <span class="size-x">×</span>
         <div class="size-input-wrap" id="heightWrap">
           <button class="size-step" type="button" data-target="sizeHeight" data-step="-1" aria-label="减少高度">−</button>
-          <input class="size-input" id="sizeHeight" type="number" placeholder="高" value="30">
+          <input class="size-input" id="sizeHeight" type="number" inputmode="decimal" placeholder="高" value="30">
           <span class="size-unit">cm</span>
           <button class="size-step" type="button" data-target="sizeHeight" data-step="1" aria-label="增加高度">+</button>
         </div>
@@ -266,7 +266,7 @@
     <span class="modal-close" id="loginModalClose">×</span>
   </div>
   <div class="login-form-modal">
-    <input type="text" id="modalLoginUsername" placeholder="请输入手机号码" class="login-input">
+    <input type="text" id="modalLoginUsername" inputmode="numeric" placeholder="请输入手机号码" class="login-input">
     <input type="password" id="modalLoginPassword" placeholder="密码" class="login-input">
     <div class="invite-register-hint" id="inviteRegisterHint" style="display:none">已识别好友邀请，注册成功后可额外获得点数</div>
     <button class="btn-primary" id="modalLoginBtn" type="button">登录</button>

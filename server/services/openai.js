@@ -38,10 +38,10 @@ const RATIO_PRESETS = [
   { ratio: 2 / 1, value: '2:1' },
   { ratio: 16 / 9, value: '16:9' },
   { ratio: 3 / 2, value: '3:2' },
+  { ratio: 5 / 4, value: '5:4' },
   { ratio: 4 / 3, value: '4:3' },
   // 竖版（ratio < 1）
   { ratio: 1 / 1, value: '1:1' },
-  { ratio: 5 / 4, value: '5:4' },
   { ratio: 4 / 5, value: '4:5' },
   { ratio: 3 / 4, value: '3:4' },
   { ratio: 2 / 3, value: '2:3' },
@@ -109,7 +109,7 @@ function buildPrompt(scene, userText, hasReferenceImages = false) {
   const desc = SCENE_DESCS[scene] || 'Commercial design.';
 
   const lines = [
-    `${desc}`,
+    desc,
     'Generate a flat, print-ready 2D design draft only.',
     'Do not create mockups, photographed product setups, physical display stands, storefront exteriors, wall installations, lighting fixtures, room scenes, or any real-world environmental presentation.',
     'Do not show frames, supports, walls, store facades, shelves, spotlights, hanging structures, or perspective display effects.',
@@ -352,28 +352,35 @@ async function pollResult(baseURL, apiKey, taskId) {
     const interval = Date.now() < fastEnd ? 1000 : 2000;
     await new Promise(r => setTimeout(r, interval));
 
-    const res = await fetch(`${baseURL}/v1/draw/result`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({ id: taskId }),
-      signal: AbortSignal.timeout(15000),
-    });
+    try {
+      const res = await fetch(`${baseURL}/v1/draw/result`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({ id: taskId }),
+        signal: AbortSignal.timeout(15000),
+      });
 
-    if (!res.ok) continue;
+      if (!res.ok) continue;
 
-    const json = await res.json();
-    const data = json.data;
-    if (!data) continue;
+      const json = await res.json();
+      const data = json.data;
+      if (!data) continue;
 
-    if (data.progress !== undefined) {
-      console.log(`[grsai] 轮询进度: ${data.progress}%`);
-    }
+      if (data.progress !== undefined) {
+        console.log(`[grsai] 轮询进度: ${data.progress}%`);
+      }
 
-    if (data.status === 'succeeded' || data.status === 'failed') {
-      return data;
+      if (data.status === 'succeeded' || data.status === 'failed') {
+        return data;
+      }
+    } catch (error) {
+      if (isTransientError(error)) {
+        continue;
+      }
+      throw error;
     }
   }
   throw new Error('生成超时（10分钟）');

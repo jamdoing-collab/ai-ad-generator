@@ -278,7 +278,7 @@ async function api(endpoint, options = {}) {
     updateMineDisplay();
     if (!authExpiredNotified && !getShareImageId()) {
       authExpiredNotified = true;
-      alert('登录状态校验失败，请重新登录');
+      showToast('登录状态校验失败，请重新登录');
       showLoginModal();
     }
   }
@@ -602,7 +602,8 @@ async function selectMaterial(index) {
 
 async function calcAspectRatio(width, height) {
   try {
-    const data = await api(`/config/gen-size?width=${encodeURIComponent(width)}&height=${encodeURIComponent(height)}`);
+    const scene = currentMaterial?.key || '';
+    const data = await api(`/config/gen-size?scene=${encodeURIComponent(scene)}&width=${encodeURIComponent(width)}&height=${encodeURIComponent(height)}`);
     if (data.code === 0 && data.data?.aspectRatio) return data.data.aspectRatio;
   } catch (e) {
     console.warn('calcAspectRatio API failed', e);
@@ -670,13 +671,13 @@ async function validateSize() {
 }
 
 function chooseImage() {
-  if (uploadedImages.length >= 3) { alert('最多上传3张素材图'); return; }
+  if (uploadedImages.length >= 3) { showToast('最多上传3张素材图'); return; }
   const input = document.createElement('input');
   input.type = 'file';
   input.accept = 'image/jpeg,image/png,image/webp';
   input.onchange = e => {
     const file = e.target.files[0];
-    if (file.size > 10 * 1024 * 1024) { alert('图片大小不能超过10MB'); return; }
+    if (file.size > 10 * 1024 * 1024) { showToast('图片大小不能超过10MB'); return; }
     const reader = new FileReader();
     reader.onload = evt => {
       uploadedImages.push(evt.target.result);
@@ -930,12 +931,12 @@ async function regenerateCurrentDetail(mode) {
     }
     showDetailError(err.message || '调整失败，请重试', () => regenerateCurrentDetail(mode));
   } finally {
-    if (!($('errorState').style.display === 'flex')) {
+    if ($('errorState').style.display !== 'flex') {
       showDetailContent();
     }
     isGenerating = false;
     $('modifySubmitBtn').disabled = false;
-    $('modifySubmitBtn').textContent = '重新生成';
+    updateModifySubmitLabel();
   }
 }
 
@@ -1016,7 +1017,7 @@ function hideLoginModal() {
 }
 
 async function doLogin(username, password, options = {}) {
-  if (!username || !password) { alert('请输入手机号和密码'); return; }
+  if (!username || !password) { showToast('请输入手机号和密码'); return; }
 
   const isRegister = $('loginModalTitle').textContent === '注册';
   const endpoint = isRegister ? '/auth/register' : '/auth/login';
@@ -1187,7 +1188,7 @@ async function doRecharge() {
     $('rechargeModal').style.display = 'none';
     showToast(`充值成功！${pkg.points}点已到账`);
   } catch (err) {
-    alert(err.message || '支付失败');
+    showToast(err.message || '支付失败');
   } finally {
     if ($('payBtn')) {
       $('payBtn').disabled = false;
