@@ -9,6 +9,7 @@ const config = require('./config');
 
 const app = express();
 const PORT = config.PORT;
+const HOST = '0.0.0.0';
 
 // 部署在 Railway / 反向代理后时，信任第一层代理，确保 req.ip 可用于限速与日志。
 app.set('trust proxy', 1);
@@ -232,11 +233,12 @@ app.use('/api/admin', express.json({ limit: '5mb' }), adminRoutes);
   });
   
   // 启动服务
-  app.listen(PORT, () => {
+  app.listen(PORT, HOST, () => {
     console.log(`
   ╔═══════════════════════════════════════════════════╗
   ║ AI 广告设计服务已启动                              ║
-  ║ 访问地址: http://localhost:${PORT}                    ║
+  ║ 本机访问: http://localhost:${PORT}                    ║
+  ║ 局域网访问: http://<你的电脑局域网IP>:${PORT}         ║
   ╚═══════════════════════════════════════════════════╝
   `);
   });
