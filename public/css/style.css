@@ -133,7 +133,7 @@ display: inline-flex;
 align-items: center;
 justify-content: center;
 color: #fff;
-font-size: 13px;
+font-size: 12px;
 font-weight: 700;
 letter-spacing: 0.08em;
 background: linear-gradient(135deg, var(--primary) 0%, #e29a54 100%);
@@ -190,7 +190,7 @@ font-weight: 700;
 }
 
 .sub-header h1 {
-font-size: 17px;
+font-size: 16px;
 font-weight: 600;
 }
 
@@ -203,7 +203,7 @@ cursor: pointer;
 
 .section {
 margin: 0;
-padding: 12px 14px;
+padding: 12px 16px;
 border-radius: 0;
 background: transparent;
 border: none;
@@ -227,7 +227,7 @@ overflow-x: auto;
 
 .material-list {
 display: flex;
-gap: 10px;
+gap: 12px;
 }
 
 .material-chip {
@@ -238,7 +238,7 @@ align-items: center;
 justify-content: center;
 min-width: 78px;
 min-height: 82px;
-padding: 12px 14px;
+padding: 12px 16px;
 border: 1px solid rgba(104, 76, 43, 0.12);
  border-radius: var(--radius-lg);
 background: var(--surface-soft);
@@ -287,8 +287,8 @@ font-weight: 500;
 .text-input {
 width: 100%;
 min-height: 96px;
-padding: 12px 14px;
- border-radius: var(--radius-lg);
+ padding: 12px 14px;
+  border-radius: var(--radius-lg);
 color: var(--text);
 line-height: 1.7;
 resize: none;
@@ -472,7 +472,7 @@ min-width: 0;
 border: none;
 outline: none;
 background: transparent;
-font-size: 15px;
+ font-size: 14px;
 text-align: center;
 }
 
@@ -600,7 +600,7 @@ box-shadow: none;
 .btn-action {
 height: 48px;
 border-radius: var(--radius-md);
-font-size: 15px;
+font-size: 14px;
 }
 
 .btn-download {
@@ -671,7 +671,7 @@ font-weight: 600;
 .loading-sub {
 margin-top: 4px;
 color: var(--text-faint);
-font-size: 13px;
+font-size: 12px;
 }
 
 .error-state {
@@ -688,14 +688,14 @@ margin-bottom: 14px;
 }
 
 .error-title {
-font-size: 17px;
+font-size: 16px;
 font-weight: 600;
 margin-bottom: 8px;
 }
 
 .error-desc {
 margin-bottom: 20px;
-font-size: 13px;
+font-size: 12px;
 color: var(--text-soft);
 }
 
@@ -753,9 +753,9 @@ width: 100%;
 
 .detail-meta-row {
 display: flex;
-gap: 10px;
+gap: 12px;
 align-items: flex-start;
-padding: 11px 0;
+padding: 12px 0;
 border-bottom: 1px solid rgba(104, 76, 43, 0.08);
 }
 
@@ -773,7 +773,7 @@ color: var(--text-faint);
 
 .detail-meta-value {
 flex: 1;
-font-size: 13px;
+font-size: 14px;
 color: var(--text);
 line-height: 1.6;
 word-break: break-all;
@@ -801,7 +801,7 @@ font-size: 11px;
 .detail-actions {
 width: 100%;
 display: flex;
-gap: 10px;
+gap: 12px;
 margin-top: 16px;
 }
 
@@ -810,7 +810,7 @@ flex: 1;
 }
 
 .btn-tweak {
-height: 44px;
+ height: 48px;
 color: #fff;
 border: none;
 background: linear-gradient(135deg, var(--primary-deep) 0%, var(--primary) 100%);
@@ -824,7 +824,7 @@ box-shadow: none;
 }
 
 .btn-share {
-height: 44px;
+ height: 48px;
 border: 1px solid rgba(104, 76, 43, 0.16);
 background: rgba(255, 255, 255, 0.92);
 color: var(--text);
@@ -842,10 +842,7 @@ margin-bottom: 0;
 
 .modify-textarea {
   min-height: 110px;
-  padding-top: 12px;
-  padding-bottom: 12px;
-  padding-left: 14px;
-  padding-right: 14px;
+  padding: 12px 14px;
   resize: vertical;
   line-height: 1.6;
 }
@@ -931,7 +928,7 @@ font-size: 28px;
 .mine-hint {
 margin-top: 4px;
 color: var(--text-soft);
-font-size: 13px;
+font-size: 12px;
 }
 
 .mine-login-btn {
@@ -946,7 +943,7 @@ padding: 16px;
 
 .help-section {
 display: flex;
-gap: 14px;
+gap: 12px;
 margin-bottom: 28px;
 }
 
@@ -957,7 +954,7 @@ height: 32px;
 border-radius: 50%;
 background: var(--primary);
 color: #fff;
-font-size: 15px;
+font-size: 14px;
 font-weight: 700;
 display: flex;
 align-items: center;
@@ -971,14 +968,14 @@ min-width: 0;
 }
 
 .help-step-title {
-font-size: 15px;
+font-size: 14px;
 font-weight: 600;
 color: var(--text);
 margin-bottom: 6px;
 }
 
 .help-step-desc {
-font-size: 13px;
+font-size: 12px;
 color: var(--text-soft);
 line-height: 1.6;
 margin-bottom: 12px;
@@ -999,7 +996,7 @@ margin: 8px 0 24px;
 }
 
 .help-faq-title {
-font-size: 15px;
+font-size: 14px;
 font-weight: 600;
 color: var(--text);
 margin-bottom: 16px;
@@ -1017,7 +1014,7 @@ margin-bottom: 4px;
 }
 
 .help-faq-a {
-font-size: 13px;
+font-size: 12px;
 color: var(--text-soft);
 line-height: 1.6;
 }
@@ -1199,7 +1196,7 @@ margin-bottom: 3px;
 }
 
 .invite-rule-desc {
-font-size: 13px;
+font-size: 12px;
 color: var(--text-soft);
 line-height: 1.65;
 }
@@ -1240,7 +1237,7 @@ margin-top: 8px;
 .login-switch span {
 color: var(--primary-deep);
 cursor: pointer;
-font-size: 13px;
+font-size: 12px;
 }
 
 .history-list {
@@ -1283,7 +1280,7 @@ font-size: 13px;
 
 .history-card-label {
   padding: 0 10px 8px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
