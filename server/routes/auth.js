@@ -62,9 +62,13 @@ router.post('/register', async (req, res) => {
   }
 
   let inviter = null;
+  let inviteWarning = null;
   const normalizedInviteCode = String(inviteCode || '').trim();
   if (normalizedInviteCode) {
     inviter = db.getUserByInviteCode(normalizedInviteCode);
+    if (!inviter) {
+      inviteWarning = '邀请码无效，已忽略邀请关系';
+    }
   }
 
   // 创建用户
@@ -92,6 +96,7 @@ router.post('/register', async (req, res) => {
     code: 0,
     data: {
       token,
+      inviteWarning,
       user: {
         id: user.id,
         username: user.username,
@@ -130,7 +135,7 @@ router.post('/login', async (req, res) => {
     }
 
     // 查找用户：手机号优先，兼容旧管理员账号（如 jamdo）
-    const user = db.getUserByUsername(normalizedUsername);
+    const user = db.getUserAuthByUsername(normalizedUsername);
     if (!user) {
       await bcrypt.compare(password, '$2a$10$invalidhashfortimingonly000000000000000000000000000000');
       return res.status(401).json({ code: 401, message: '用户名或密码错误' });

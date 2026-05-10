@@ -48,7 +48,7 @@ router.put('/info', (req, res) => {
       return res.status(400).json({ code: 400, message: '没有要更新的内容' });
     }
 
-    const normalizedUpdate = { ...updateData };
+    const normalizedUpdate = {};
 
     if (Object.prototype.hasOwnProperty.call(updateData, 'username')) {
       const newUsername = normalizePhone(updateData.username);
@@ -61,6 +61,10 @@ router.put('/info', (req, res) => {
         return res.status(409).json({ code: 409, message: '用户名已被占用' });
       }
       normalizedUpdate.username = newUsername;
+    }
+
+    if (Object.keys(normalizedUpdate).length === 0) {
+      return res.status(400).json({ code: 400, message: '没有可更新的合法字段' });
     }
 
     db.updateUserProfile(req.userId, normalizedUpdate);

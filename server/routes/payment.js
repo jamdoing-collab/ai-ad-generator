@@ -1,11 +1,8 @@
 const express = require('express');
-const auth = require('../middleware/auth');
 const db = require('../database');
 const config = require('../config');
 
 const router = express.Router();
-
-router.use(auth);
 
 // 创建订单
 router.post('/create', (req, res) => {
@@ -69,7 +66,7 @@ router.post('/confirm', (req, res) => {
   }
 
   if (order.status === 'pending') {
-    const elapsed = Date.now() - new Date(order.created_at).getTime();
+    const elapsed = Date.now() - new Date(`${order.created_at}Z`).getTime();
     if (elapsed > 5 * 60 * 1000) {
       return res.json({ code: 0, data: { success: false, status: 'expired' } });
     }

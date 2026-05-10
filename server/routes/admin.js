@@ -145,19 +145,24 @@ router.put('/users/:id', async (req, res) => {
       return res.status(404).json({ code: 404, message: '用户不存在' });
     }
 
-  const updates = {};
+    const updates = {};
+    let diff = 0;
 
-  if (Object.prototype.hasOwnProperty.call(req.body, 'points')) {
-    const parsedPoints = Number(req.body.points);
-    if (!Number.isInteger(parsedPoints) || parsedPoints < 0) {
-      return res.status(400).json({ code: 400, message: '点数必须是大于等于 0 的整数' });
+    if (req.body.password) {
+      const passwordError = validatePassword(req.body.password);
+      if (passwordError) {
+        return res.status(400).json({ code: 400, message: passwordError });
+      }
     }
-    updates.points = parsedPoints;
-    const diff = parsedPoints - existingUser.points;
-    if (diff !== 0) {
-      db.logPointChange(userId, 'admin_adjust', diff, '管理员调整点数');
+
+    if (Object.prototype.hasOwnProperty.call(req.body, 'points')) {
+      const parsedPoints = Number(req.body.points);
+      if (!Number.isInteger(parsedPoints) || parsedPoints < 0) {
+        return res.status(400).json({ code: 400, message: '点数必须是大于等于 0 的整数' });
+      }
+      updates.points = parsedPoints;
+      diff = parsedPoints - existingUser.points;
     }
-  }
 
     if (Object.prototype.hasOwnProperty.call(req.body, 'is_admin')) {
       if (existingUser.id === req.userId && !req.body.is_admin) {
@@ -168,12 +173,11 @@ router.put('/users/:id', async (req, res) => {
 
     const updatedUser = db.updateUserAdminProfile(userId, updates) || existingUser;
 
-    if (req.body.password) {
-      const passwordError = validatePassword(req.body.password);
-      if (passwordError) {
-        return res.status(400).json({ code: 400, message: passwordError });
-      }
+    if (diff !== 0) {
+      db.logPointChange(userId, 'admin_adjust', diff, '管理员调整点数');
+    }
 
+    if (req.body.password) {
       const hashedPassword = await bcrypt.hash(req.body.password, 10);
       db.updateUserPassword(userId, hashedPassword);
     }
@@ -207,25 +211,31 @@ router.delete('/users/:id', (req, res) => {
       return res.status(400).json({ code: 400, message: '不能删除当前登录管理员' });
     }
 
-    // 清理该用户的图片文件
-  const uploadsRoot = path.resolve(__dirname, '../../uploads');
-  let offset = 0;
-  const BATCH = 1000;
-  let userImages;
-  do {
-    userImages = db.getUserImages(userId, BATCH, offset);
-    for (const img of userImages) {
-      const paths = img.image_paths || [];
-      for (const p of paths) {
-        const abs = path.resolve(uploadsRoot, p.replace(/^\/uploads\//, ''));
-        if (!abs.startsWith(uploadsRoot + path.sep)) continue;
-        try { fs.unlinkSync(abs); } catch {}
+    const uploadsRoot = path.resolve(__dirname, '../../uploads');
+    const imagePathsToDelete = [];
+    let offset = 0;
+    const BATCH = 1000;
+    let userImages;
+    do {
+      userImages = db.getUserImages(userId, BATCH, offset);
+      for (const img of userImages) {
+        const paths = img.image_paths || [];
+        for (const p of paths) {
+          const abs = path.resolve(uploadsRoot, p.replace(/^\/uploads\//, ''));
+          if (abs.startsWith(uploadsRoot + path.sep)) {
+            imagePathsToDelete.push(abs);
+          }
+        }
       }
-    }
-    offset += BATCH;
-  } while (userImages.length === BATCH);
+      offset += BATCH;
+    } while (userImages.length === BATCH);
 
     db.deleteUserById(userId);
+
+    for (const abs of imagePathsToDelete) {
+      try { fs.unlinkSync(abs); } catch {}
+    }
+
     res.json({ code: 0, message: '删除成功' });
   } catch (err) {
     console.error('[管理员删除用户错误]', err);
