@@ -136,16 +136,15 @@ function buildEditPrompt(scene, userText, feedback = null) {
     : null;
 
   const lines = [
-    'Edit the provided image with minimal necessary changes.',
-    'Preserve the original design language, visual hierarchy, and key elements as much as possible. Do not redesign the whole image unless the requested changes require it.',
-    'Only modify the aspects explicitly requested below.',
-    'Preserve existing text and graphic content by default. If the requested changes explicitly require adding, removing, rewording, or repositioning content, apply only those requested content changes and keep untouched content faithful to the original.',
-    'If content changes affect balance, make the minimum necessary layout adjustments to spacing, alignment, grouping, scale, or local positioning so the result stays compact, readable, and visually balanced without obvious gaps or crowding.',
+    'Edit the provided image according to the requested changes below.',
+    'Only change what the user explicitly asked to change. Keep everything else as close to the original as reasonably possible.',
+    'If the requested changes require related adjustments to layout, spacing, alignment, grouping, scale, color, or local positioning, make only the minimum necessary consequential adjustments to complete the request well.',
+    'If the user explicitly asks to change style, tone, color direction, or overall visual treatment, you may make the corresponding visual changes, but do not alter unrelated content or elements without a clear reason.',
     'Keep the output as a flat, print-ready 2D design draft only.',
     'Do not turn it into a mockup, real-world scene, display stand, storefront scene, wall scene, lighting scene, or environmental rendering.',
     feedbackRule,
     '',
-    'Use the following text as the original base content.',
+    'Use the following text as the original base content and preserve any parts the user did not ask to change.',
     '---',
     userText.trim(),
     '---',
