@@ -507,7 +507,7 @@ function escapeHtml(value) {
 }
 
 function formatDate(value) {
-  return value ? new Date(value).toLocaleString() : '--';
+  return value ? new Date(`${value}Z`).toLocaleString() : '--';
 }
 
 /* ─── 页面切换 ─── */
@@ -524,8 +524,13 @@ function switchPage(pageName) {
   closeSidebar();
 
   if (pageName === 'settings' && !settingsLoaded) {
-    loadSettings();
-    settingsLoaded = true;
+    loadSettings()
+      .then(() => {
+        settingsLoaded = true;
+      })
+      .catch((error) => {
+        setMessage('settingsMessage', error.message || '加载设置失败', 'error');
+      });
   }
 }
 
@@ -545,7 +550,20 @@ async function request(endpoint, options = {}) {
   const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
   if (authToken) headers.Authorization = `Bearer ${authToken}`;
 
-  const response = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 90000);
+
+  let response;
+  try {
+    response = await fetch(`${API_BASE}${endpoint}`, { ...options, headers, signal: controller.signal });
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error('请求超时，请重试');
+    }
+    throw new Error('网络错误，请检查连接');
+  } finally {
+    clearTimeout(timeoutId);
+  }
   let data = null;
   try {
     data = await response.json();
