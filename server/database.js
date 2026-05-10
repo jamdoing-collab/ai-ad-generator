@@ -64,6 +64,7 @@ function ensureUserColumns() {
     db.run('ALTER TABLE users ADD COLUMN created_at TEXT');
     db.run('UPDATE users SET created_at = datetime("now") WHERE created_at IS NULL');
   }
+  db.run('UPDATE users SET created_at = datetime("now") WHERE created_at IS NULL OR created_at = ""');
 
   if (!columns.has('updated_at')) {
     db.run('ALTER TABLE users ADD COLUMN updated_at TEXT');
@@ -396,7 +397,7 @@ function createUser(username, password, options = {}) {
   const inviteCode = createUniqueInviteCode();
   const referredByUserId = Number.isInteger(Number(options.referredByUserId)) ? Number(options.referredByUserId) : null;
   db.run(
-    'INSERT INTO users (username, password, points, is_admin, invite_code, referred_by_user_id) VALUES (?, ?, ?, ?, ?, ?)',
+    'INSERT INTO users (username, password, points, is_admin, invite_code, referred_by_user_id, created_at) VALUES (?, ?, ?, ?, ?, ?, datetime("now"))',
     [username, password, points, isAdmin, inviteCode, referredByUserId]
   );
   const stmt = db.prepare('SELECT last_insert_rowid() as id');
@@ -492,7 +493,7 @@ function listUsersWithStats() {
       LEFT JOIN images i ON i.user_id = u.id
       LEFT JOIN orders o ON o.user_id = u.id
     GROUP BY u.id
-    ORDER BY u.created_at DESC
+    ORDER BY u.created_at DESC, u.id DESC
   `);
 
   while (stmt.step()) {
