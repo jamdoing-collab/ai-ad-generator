@@ -31,6 +31,8 @@ INVITE_NEW_USER_POINTS=2
 INVITE_FIRST_GENERATE_POINTS=2
 ```
 
+> 说明：上述点数相关配置当前要求为**正整数**。如果填写为非法值（如 `0`、负数、`12abc`、`1.5点`），服务会在启动时打印配置警告，并回退到默认值。
+
 ## 管理员启动引导（可选）
 
 ```env
@@ -46,6 +48,11 @@ ADMIN_BOOTSTRAP_FORCE_RESET=false
 ADMIN_BOOTSTRAP_FORCE_RESET=true
 ```
 
+## JWT 兼容配置提示
+
+- `JWT_FALLBACK_SECRETS` 仅用于兼容历史 token。
+- 生产环境建议保持为空；当前服务在生产环境启动时，如果该配置非空，会打印警告日志。
+
 ## 端口与公网域名
 
 - Railway 运行时会注入 `PORT`，日志里可能显示 `localhost:8080`。
@@ -56,6 +63,11 @@ ADMIN_BOOTSTRAP_FORCE_RESET=true
 1. 数据库为 `SQL.js`，以内存运行并持久化到本地数据文件。
 2. `uploads/` 为本地文件目录，重新部署/迁移后不保证长期保留。
 3. 适合演示、试用，不适合长期生产使用。
+
+## 生成与修改行为补充
+
+- `/api/config/gen-size` 当前会结合 `scene + width + height` 一起校验尺寸范围，而不是只按通用数值范围计算。
+- 生成后的“修改图片”支持内容感知的版式调整：如果修改要求明确提出增删改内容，模型会在尽量保留原设计风格的前提下做最小必要的布局再平衡。
 
 ## 长期生产建议
 

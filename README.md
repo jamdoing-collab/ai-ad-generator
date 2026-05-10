@@ -8,6 +8,7 @@
 - 自定义尺寸（cm 物料 1-300cm，px 物料 64-4096px）
 - 画质选择：默认 / 2K / 4K（消耗不同点数）
 - 参考图上传（图生图，自动上传至图床）
+- 结果二次修改（支持按修改要求增删内容，并在必要时自动重平衡版式）
 - 用户注册/登录（当前按手机号作为账号）
 - 点数系统（新用户赠送 10 点）
 - 充值功能
@@ -66,7 +67,7 @@ npm start
 | `/api/user/info` | GET | 获取用户信息 | 是 |
 | `/api/user/points` | GET | 获取点数 | 是 |
 | `/api/config/materials` | GET | 获取物料类型 | 否 |
-| `/api/config/gen-size` | GET | 计算生成比例 | 否 |
+| `/api/config/gen-size` | GET | 根据 `scene + width + height` 校验尺寸并计算生成比例 | 否 |
 | `/api/generate/image` | POST | 生成图片 | 是 |
 | `/api/generate/history` | GET | 生成历史 | 是 |
 | `/image/:id` | GET | 获取完整图片 | 是 |
@@ -86,6 +87,15 @@ npm start
 |------|------|------|
 | 生成图片 | `POST /v1/draw/completions` | 提交生图任务 |
 | 获取结果 | `POST /v1/draw/result` | 轮询任务结果 |
+
+### 修改模式说明
+
+生成后的“修改图片”会复用原结果作为基础图，并结合用户反馈进行二次生成。当前修改策略为：
+
+- 默认尽量保留原有设计语言、视觉层级和关键元素
+- 只有当修改要求明确要求增删改内容时，才改动对应内容
+- 如果内容发生增减，模型会做最小必要的版式再平衡，避免明显空洞或过度拥挤
+- 输出仍然限制为平面的、可印刷的 2D 设计稿，不转成 mockup 或真实场景图
 
 ### 画质与模型
 
@@ -115,6 +125,12 @@ npm start
 已验证可部署到 Railway。详细步骤见：
 
 - [DEPLOY.md](./DEPLOY.md)
+
+## 配置说明补充
+
+- `NEW_USER_POINTS`、`POINTS_PER_GENERATE`、`POINTS_PER_GENERATE_HD`、`POINTS_PER_GENERATE_4K`、`INVITE_NEW_USER_POINTS`、`INVITE_FIRST_GENERATE_POINTS` 当前要求为**正整数**。
+- 如果这些环境变量填写为非法值（例如 `0`、负数、带脏后缀的字符串），服务启动时会打印配置警告并回退到默认值。
+- `JWT_FALLBACK_SECRETS` 仅用于兼容旧 token；生产环境建议留空，当前启动时会给出提示警告。
 
 ## 项目结构
 
