@@ -180,13 +180,26 @@
     th, td { padding: 16px 22px; text-align: left; border-bottom: 1px solid rgba(104, 76, 43, 0.08); }
     th { color: var(--text-soft); font-size: 12px; font-weight: 600; }
     td { font-size: 14px; vertical-align: top; }
-    th:nth-child(1), td:nth-child(1) { width: 26%; }
-    th:nth-child(2), td:nth-child(2) { width: 12%; }
-    th:nth-child(3), td:nth-child(3) { width: 16%; }
-    th:nth-child(4), td:nth-child(4) { width: 24%; }
-    th:nth-child(5), td:nth-child(5) { width: 22%; }
-    td:first-child { word-break: break-all; }
-    td:nth-child(4) { white-space: nowrap; }
+
+    .user-table th:nth-child(1), .user-table td:nth-child(1) { width: 26%; }
+    .user-table th:nth-child(2), .user-table td:nth-child(2) { width: 12%; }
+    .user-table th:nth-child(3), .user-table td:nth-child(3) { width: 16%; }
+    .user-table th:nth-child(4), .user-table td:nth-child(4) { width: 24%; }
+    .user-table th:nth-child(5), .user-table td:nth-child(5) { width: 22%; }
+    .user-table td:first-child { word-break: break-all; }
+    .user-table td:nth-child(4) { white-space: nowrap; }
+
+    .generation-log-table th:nth-child(1), .generation-log-table td:nth-child(1) { width: 20%; }
+    .generation-log-table th:nth-child(2), .generation-log-table td:nth-child(2) { width: 18%; }
+    .generation-log-table th:nth-child(3), .generation-log-table td:nth-child(3) { width: 12%; }
+    .generation-log-table th:nth-child(4), .generation-log-table td:nth-child(4) { width: 16%; }
+    .generation-log-table th:nth-child(5), .generation-log-table td:nth-child(5) { width: 12%; }
+    .generation-log-table th:nth-child(6), .generation-log-table td:nth-child(6) { width: 22%; }
+    .generation-log-table td:nth-child(1),
+    .generation-log-table td:nth-child(5) { white-space: nowrap; }
+    .generation-log-table td:nth-child(2) { word-break: break-all; }
+    .generation-log-table td:last-child,
+    .generation-log-table th:last-child { text-align: left; }
 
     .badge {
       display: inline-flex;
@@ -365,7 +378,7 @@
             </div>
           </div>
           <div class="table-scroll">
-            <table>
+            <table class="user-table">
               <thead>
                 <tr>
                   <th>用户</th>
@@ -393,15 +406,15 @@
             </div>
           </div>
           <div class="table-scroll">
-            <table>
+            <table class="generation-log-table">
               <thead>
                 <tr>
+                  <th>时间</th>
                   <th>用户</th>
                   <th>物料</th>
                   <th>尺寸/画质</th>
                   <th>状态</th>
                   <th>错误信息</th>
-                  <th>时间</th>
                 </tr>
               </thead>
               <tbody id="generationLogTableBody"></tbody>
@@ -541,7 +554,17 @@ function escapeHtml(value) {
 }
 
 function formatDate(value) {
-  return value ? new Date(`${value}Z`).toLocaleString() : '--';
+  return value
+    ? new Intl.DateTimeFormat('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    }).format(new Date(`${value}Z`))
+    : '--';
 }
 
 /* ─── 页面切换 ─── */
@@ -752,12 +775,12 @@ function renderGenerationLogs() {
       : '<span class="badge badge-danger">失败</span>';
     return `
       <tr>
+        <td>${formatDate(log.created_at)}</td>
         <td>${username}</td>
         <td>${scene}</td>
         <td>${size} / ${quality}</td>
         <td>${status}</td>
         <td title="${errorMessage}">${errorMessage}</td>
-        <td>${formatDate(log.created_at)}</td>
       </tr>
     `;
   }).join('');
