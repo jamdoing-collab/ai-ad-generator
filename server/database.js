@@ -236,12 +236,17 @@ CREATE TABLE IF NOT EXISTS users (
         prompt TEXT NOT NULL,
         width INTEGER NOT NULL,
         height INTEGER NOT NULL,
+        quality TEXT DEFAULT 'default',
         image_paths TEXT,
         created_at TEXT DEFAULT (datetime('now')),
         FOREIGN KEY (user_id) REFERENCES users(id)
       )
     `);
-    const newCols = cols[0].values.filter(c => c[1] !== 'dpi').map(c => c[1]).join(', ');
+    const recreatedColumns = new Set(['id', 'user_id', 'scene', 'prompt', 'width', 'height', 'quality', 'image_paths', 'created_at']);
+    const newCols = cols[0].values
+      .filter(c => c[1] !== 'dpi' && recreatedColumns.has(c[1]))
+      .map(c => c[1])
+      .join(', ');
     db.run(`INSERT INTO images (${newCols}) SELECT ${newCols} FROM images_old`);
     db.run('DROP TABLE images_old');
     db.run('CREATE INDEX IF NOT EXISTS idx_images_user_id ON images(user_id)');
@@ -317,7 +322,19 @@ function migrateSettingsIfNeeded() {
 }
 
 function getUserByUsername(username) {
-  const stmt = db.prepare('SELECT * FROM users WHERE username = ?');
+  const stmt = db.prepare('SELECT id, username, points, is_admin, invite_code, referred_by_user_id, created_at FROM users WHERE username = ?');
+  stmt.bind([username]);
+  if (stmt.step()) {
+    const row = stmt.getAsObject();
+    stmt.free();
+    return row;
+  }
+  stmt.free();
+  return null;
+}
+
+function getUserAuthByUsername(username) {
+  const stmt = db.prepare('SELECT id, username, password, points, is_admin, invite_code, referred_by_user_id, created_at FROM users WHERE username = ?');
   stmt.bind([username]);
   if (stmt.step()) {
     const row = stmt.getAsObject();
@@ -530,13 +547,23 @@ function updateUserPassword(userId, hashedPassword) {
 }
 
 function deleteUserById(userId) {
-  db.run('DELETE FROM sessions WHERE user_id = ?', [userId]);
-  db.run('DELETE FROM point_changes WHERE user_id = ?', [userId]);
-  db.run('DELETE FROM images WHERE user_id = ?', [userId]);
-  db.run('DELETE FROM orders WHERE user_id = ?', [userId]);
-  db.run('DELETE FROM invite_rewards WHERE inviter_user_id = ? OR invited_user_id = ?', [userId, userId]);
-  db.run('UPDATE users SET referred_by_user_id = NULL WHERE referred_by_user_id = ?', [userId]);
-  db.run('DELETE FROM users WHERE id = ?', [userId]);
+  db.run('BEGIN');
+  try {
+    db.run('DELETE FROM sessions WHERE user_id = ?', [userId]);
+    db.run('DELETE FROM point_changes WHERE user_id = ?', [userId]);
+    db.run('DELETE FROM images WHERE user_id = ?', [userId]);
+    db.run('DELETE FROM orders WHERE user_id = ?', [userId]);
+    db.run('DELETE FROM invite_rewards WHERE inviter_user_id = ? OR invited_user_id = ?', [userId, userId]);
+    db.run('UPDATE users SET referred_by_user_id = NULL WHERE referred_by_user_id = ?', [userId]);
+    db.run('DELETE FROM users WHERE id = ?', [userId]);
+    db.run('COMMIT');
+  } catch (err) {
+    try {
+      db.run('ROLLBACK');
+    } catch {
+    }
+    throw err;
+  }
   saveDatabase();
 }
 
@@ -548,14 +575,6 @@ function logPointChange(userId, type, amount, description) {
   db.run('INSERT INTO point_changes (user_id, type, amount, balance, description) VALUES (?, ?, ?, ?, ?)',
     [userId, type, amount, balance, description]);
   saveDatabase();
-}
-
-function hasInviteReward(invitedUserId, type) {
-  const stmt = db.prepare('SELECT id FROM invite_rewards WHERE invited_user_id = ? AND type = ? LIMIT 1');
-  stmt.bind([invitedUserId, type]);
-  const exists = stmt.step();
-  stmt.free();
-  return exists;
 }
 
 function awardInviteReward(invitedUserId, type, amount, description) {
@@ -574,35 +593,43 @@ function awardInviteReward(invitedUserId, type, amount, description) {
     return { ok: false, message: '不能奖励自邀请' };
   }
 
-  if (hasInviteReward(invitedUserId, type)) {
-    return { ok: false, alreadyAwarded: true };
-  }
-
+  db.run('BEGIN');
   try {
     db.run(
       'INSERT INTO invite_rewards (inviter_user_id, invited_user_id, type, amount) VALUES (?, ?, ?, ?)',
       [inviterUserId, invitedUserId, type, parsedAmount]
     );
+
+    db.run(
+      'UPDATE users SET points = points + ?, updated_at = datetime("now") WHERE id = ?',
+      [parsedAmount, inviterUserId]
+    );
     if (db.getRowsModified() === 0) {
-      return { ok: false, alreadyAwarded: true };
+      db.run('ROLLBACK');
+      return { ok: false, message: '邀请者不存在' };
     }
+
+    const inviter = getUserById(inviterUserId);
+    const newPoints = inviter ? inviter.points : 0;
+    db.run(
+      'INSERT INTO point_changes (user_id, type, amount, balance, description) VALUES (?, ?, ?, ?, ?)',
+      [inviterUserId, 'invite_reward', parsedAmount, newPoints, description]
+    );
+
+    db.run('COMMIT');
+    saveDatabase();
+    return { ok: true, inviterUserId, newPoints };
   } catch (err) {
+    try {
+      db.run('ROLLBACK');
+    } catch {
+    }
     if (String(err.message || '').includes('UNIQUE')) {
       return { ok: false, alreadyAwarded: true };
     }
     console.error('[邀请奖励] 记录奖励失败:', err.message);
     return { ok: false, message: '记录奖励失败' };
   }
-
-  const pointUpdate = updateUserPoints(inviterUserId, parsedAmount);
-  if (!pointUpdate.ok) {
-    db.run('DELETE FROM invite_rewards WHERE invited_user_id = ? AND type = ?', [invitedUserId, type]);
-    return { ok: false, message: '邀请者不存在' };
-  }
-
-  logPointChange(inviterUserId, 'invite_reward', parsedAmount, description);
-  saveDatabase();
-  return { ok: true, inviterUserId, newPoints: pointUpdate.newPoints };
 }
 
 function getInviteSummary(userId) {
@@ -698,29 +725,47 @@ function completeOrderAtomic(orderId) {
     return { ok: true, alreadyCompleted: true };
   }
 
-  // 使用条件更新实现原子操作，防止并发重复入账
-  db.run(
-    'UPDATE orders SET status = ?, pay_info = ?, updated_at = datetime("now") WHERE id = ? AND status = ?',
-    ['completed', JSON.stringify({ channel: 'mock', paidAt: new Date().toISOString() }), orderId, 'pending']
-  );
-
-  if (db.getRowsModified() === 0) {
-    return { ok: false, message: '订单状态异常或已被处理' };
-  }
-
-  const pointUpdate = updateUserPoints(order.user_id, order.points);
-  if (!pointUpdate.ok) {
+  db.run('BEGIN');
+  try {
+    // 使用条件更新实现原子操作，防止并发重复入账
     db.run(
-      'UPDATE orders SET status = ?, pay_info = ?, updated_at = datetime("now") WHERE id = ?',
-      ['pending', null, orderId]
+      'UPDATE orders SET status = ?, pay_info = ?, updated_at = datetime("now") WHERE id = ? AND status = ?',
+      ['completed', JSON.stringify({ channel: 'mock', paidAt: new Date().toISOString() }), orderId, 'pending']
     );
-    return { ok: false, message: pointUpdate.reason === 'user_not_found' ? '用户不存在' : '点数入账失败' };
-  }
-  logPointChange(order.user_id, 'recharge', order.points, `充值${order.points}点数`);
-  saveDatabase();
 
-  console.log(`[支付成功] 订单:${orderId} 用户:${order.user_id}`);
-  return { ok: true, newPoints: pointUpdate.newPoints };
+    if (db.getRowsModified() === 0) {
+      db.run('ROLLBACK');
+      return { ok: false, message: '订单状态异常或已被处理' };
+    }
+
+    db.run(
+      'UPDATE users SET points = points + ?, updated_at = datetime("now") WHERE id = ?',
+      [order.points, order.user_id]
+    );
+    if (db.getRowsModified() === 0) {
+      db.run('ROLLBACK');
+      return { ok: false, message: '用户不存在' };
+    }
+
+    const user = getUserById(order.user_id);
+    const newPoints = user ? user.points : 0;
+    db.run(
+      'INSERT INTO point_changes (user_id, type, amount, balance, description) VALUES (?, ?, ?, ?, ?)',
+      [order.user_id, 'recharge', order.points, newPoints, `充值${order.points}点数`]
+    );
+
+    db.run('COMMIT');
+    saveDatabase();
+
+    console.log(`[支付成功] 订单:${orderId} 用户:${order.user_id}`);
+    return { ok: true, newPoints };
+  } catch (err) {
+    try {
+      db.run('ROLLBACK');
+    } catch {
+    }
+    throw err;
+  }
 }
 
 function getOrderById(orderId) {
@@ -763,6 +808,7 @@ function cleanExpiredSessions() {
 module.exports = {
   initDatabase,
   getUserByUsername,
+  getUserAuthByUsername,
   getUserById,
   getUserByInviteCode,
   getSessionByToken,

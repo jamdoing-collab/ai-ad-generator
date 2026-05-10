@@ -7,9 +7,10 @@ function createSettingsCrypto(secret) {
     throw new Error('缺少 JWT_SECRET 环境变量，无法加密敏感设置');
   }
 
+  const key = crypto.hkdfSync('sha256', Buffer.from(secret, 'utf8'), Buffer.alloc(0), 'settings-encryption', 32);
+
   function encryptValue(plaintext) {
     if (!plaintext) return plaintext;
-    const key = crypto.createHash('sha256').update(secret).digest();
     const iv = crypto.randomBytes(12);
     const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
     let encrypted = cipher.update(plaintext, 'utf8', 'hex');
@@ -23,7 +24,6 @@ function createSettingsCrypto(secret) {
     try {
       const raw = ciphertext.slice(SETTINGS_ENCRYPT_PREFIX.length);
       const parts = raw.split(':');
-      const key = crypto.createHash('sha256').update(secret).digest();
 
       if (parts.length === 3) {
         const iv = Buffer.from(parts[0], 'hex');
