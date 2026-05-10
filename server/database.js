@@ -21,7 +21,7 @@ try {
 }
 const { encryptValue, decryptValue, SETTINGS_ENCRYPT_PREFIX } = settingsCrypto;
 
-const ALLOWED_TABLES = ['users', 'sessions', 'images', 'point_changes', 'orders', 'settings', 'invite_rewards'];
+const ALLOWED_TABLES = ['users', 'sessions', 'images', 'point_changes', 'orders', 'settings', 'invite_rewards', 'generation_logs'];
 
 function getTableColumns(tableName) {
   if (!ALLOWED_TABLES.includes(tableName)) {
@@ -208,11 +208,31 @@ CREATE TABLE IF NOT EXISTS users (
     )
   `);
 
+  db.run(`
+    CREATE TABLE IF NOT EXISTS generation_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
+      scene TEXT,
+      prompt TEXT,
+      width INTEGER,
+      height INTEGER,
+      quality TEXT,
+      status TEXT NOT NULL,
+      error_message TEXT,
+      image_id INTEGER,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (image_id) REFERENCES images(id)
+    )
+  `);
+
   db.run('CREATE INDEX IF NOT EXISTS idx_images_user_id ON images(user_id)');
   db.run('CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id)');
   db.run('CREATE INDEX IF NOT EXISTS idx_point_changes_user_id ON point_changes(user_id)');
   db.run('CREATE INDEX IF NOT EXISTS idx_users_referred_by_user_id ON users(referred_by_user_id)');
   db.run('CREATE INDEX IF NOT EXISTS idx_invite_rewards_inviter_user_id ON invite_rewards(inviter_user_id)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_generation_logs_user_id ON generation_logs(user_id)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_generation_logs_created_at ON generation_logs(created_at)');
 
   // 迁移：旧表列名为 image_urls，新代码期望 image_paths
   const cols = db.exec("PRAGMA table_info(images)");
@@ -577,6 +597,14 @@ function logPointChange(userId, type, amount, description) {
   saveDatabase();
 }
 
+function logGenerationAttempt({ userId, scene, prompt, width, height, quality = 'default', status, errorMessage = null, imageId = null }) {
+  db.run(
+    'INSERT INTO generation_logs (user_id, scene, prompt, width, height, quality, status, error_message, image_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [userId || null, scene || null, prompt || null, width || null, height || null, quality || 'default', status, errorMessage, imageId || null]
+  );
+  saveDatabase();
+}
+
 function awardInviteReward(invitedUserId, type, amount, description) {
   const parsedAmount = Number(amount);
   if (!Number.isInteger(parsedAmount) || parsedAmount <= 0) {
@@ -688,6 +716,23 @@ function getUserImages(userId, limit = 20, offset = 0) {
     const row = stmt.getAsObject();
     row.image_paths = JSON.parse(row.image_paths || '[]');
     results.push(row);
+  }
+  stmt.free();
+  return results;
+}
+
+function listGenerationLogs(limit = 100, offset = 0) {
+  const results = [];
+  const stmt = db.prepare(`
+    SELECT gl.*, u.username
+    FROM generation_logs gl
+    LEFT JOIN users u ON u.id = gl.user_id
+    ORDER BY gl.created_at DESC, gl.id DESC
+    LIMIT ? OFFSET ?
+  `);
+  stmt.bind([limit, offset]);
+  while (stmt.step()) {
+    results.push(stmt.getAsObject());
   }
   stmt.free();
   return results;
@@ -832,9 +877,11 @@ module.exports = {
   getInviteSummary,
   getUserImageCount,
   getPointHistory,
+  logGenerationAttempt,
   saveImage,
   getUserImages,
   getImageById,
+  listGenerationLogs,
   createOrder,
   completeOrderAtomic,
   getOrderById,

@@ -327,6 +327,10 @@
           <span class="nav-icon">👥</span>
           <span class="nav-text">用户管理</span>
         </div>
+        <div class="nav-item" data-page="generationLogs">
+          <span class="nav-icon">🧾</span>
+          <span class="nav-text">生成日志</span>
+        </div>
         <div class="nav-item" data-page="settings">
           <span class="nav-icon">⚙️</span>
           <span class="nav-text">系统设置</span>
@@ -375,6 +379,35 @@
             </table>
           </div>
           <div id="emptyState" class="empty hidden">没有匹配到账号</div>
+        </div>
+      </div>
+
+      <!-- 生成日志页 -->
+      <div class="admin-page hidden" id="pageGenerationLogs">
+        <div class="page-title">生成日志</div>
+        <div class="card">
+          <div class="panel-header">
+            <div class="panel-title">全部生成记录</div>
+            <div class="toolbar">
+              <input class="input" id="generationLogSearchInput" type="search" placeholder="搜索手机号">
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>用户</th>
+                  <th>物料</th>
+                  <th>尺寸/画质</th>
+                  <th>状态</th>
+                  <th>错误信息</th>
+                  <th>时间</th>
+                </tr>
+              </thead>
+              <tbody id="generationLogTableBody"></tbody>
+            </table>
+          </div>
+          <div id="generationLogEmptyState" class="empty hidden">暂无生成记录</div>
         </div>
       </div>
 
@@ -456,7 +489,8 @@
 <script>
 const API_BASE = '/api';
 let authToken = localStorage.getItem('token') || '';
-let users = [];
+      let users = [];
+      let generationLogs = [];
 let currentUserId = null;
 let authExpiredNotified = false;
 let settingsLoaded = false;
@@ -595,11 +629,11 @@ async function ensureAdmin() {
     removeClass('adminView', 'hidden');
     authExpiredNotified = false;
     switchPage('overview');
-    await Promise.all([loadStats(), loadUsers()]);
-  } catch (error) {
-    setMessage('authMessage', error.message || '鉴权失败');
-    showAuth();
-  }
+        await Promise.all([loadStats(), loadUsers(), loadGenerationLogs()]);
+      } catch (error) {
+        setMessage('authMessage', error.message || '鉴权失败');
+        showAuth();
+      }
 }
 
 function showAuth() {
@@ -631,6 +665,13 @@ async function loadUsers() {
   if (result.code !== 0) throw new Error(result.message || '加载用户失败');
   users = result.data;
   renderUsers();
+}
+
+async function loadGenerationLogs() {
+  const result = await request('/admin/generation-logs');
+  if (result.code !== 0) throw new Error(result.message || '加载生成日志失败');
+  generationLogs = result.data || [];
+  renderGenerationLogs();
 }
 
 async function loadSettings() {
@@ -679,6 +720,46 @@ function renderUsers() {
           </div>
         </td>
       </tr>`;
+  }).join('');
+}
+
+function renderGenerationLogs() {
+  const tableBody = $('generationLogTableBody');
+  const emptyState = $('generationLogEmptyState');
+  if (!tableBody || !emptyState) return;
+
+  const keyword = $('generationLogSearchInput')?.value.trim().toLowerCase() || '';
+  const filteredLogs = generationLogs.filter(log => {
+    if (!keyword) return true;
+    return String(log.username || '').toLowerCase().includes(keyword);
+  });
+
+  if (!filteredLogs.length) {
+    tableBody.innerHTML = '';
+    removeClass('generationLogEmptyState', 'hidden');
+    return;
+  }
+
+  addClass('generationLogEmptyState', 'hidden');
+  tableBody.innerHTML = filteredLogs.map(log => {
+    const username = escapeHtml(log.username || `用户#${log.user_id || '--'}`);
+    const scene = escapeHtml(log.scene || '--');
+    const size = log.width && log.height ? `${log.width}×${log.height}` : '--';
+    const quality = escapeHtml(log.quality || 'default');
+    const errorMessage = escapeHtml(log.error_message || '--');
+    const status = log.status === 'success'
+      ? '<span class="badge badge-success">成功</span>'
+      : '<span class="badge badge-danger">失败</span>';
+    return `
+      <tr>
+        <td>${username}</td>
+        <td>${scene}</td>
+        <td>${size} / ${quality}</td>
+        <td>${status}</td>
+        <td title="${errorMessage}">${errorMessage}</td>
+        <td>${formatDate(log.created_at)}</td>
+      </tr>
+    `;
   }).join('');
 }
 
@@ -764,6 +845,7 @@ $('loginForm').addEventListener('submit', async event => {
 });
 
 $('searchInput')?.addEventListener('input', renderUsers);
+$('generationLogSearchInput')?.addEventListener('input', renderGenerationLogs);
 $('createUserBtn')?.addEventListener('click', () => openModal());
 $('cancelModalBtn')?.addEventListener('click', closeModal);
 $('logoutBtn')?.addEventListener('click', logout);

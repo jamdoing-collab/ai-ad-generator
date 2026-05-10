@@ -87,6 +87,17 @@ router.get('/users', (req, res) => {
   res.json({ code: 0, data: users });
 });
 
+router.get('/generation-logs', (req, res) => {
+  try {
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 100, 1), 500);
+    const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
+    res.json({ code: 0, data: db.listGenerationLogs(limit, offset) });
+  } catch (err) {
+    console.error('[管理员获取生成日志错误]', err);
+    res.status(500).json({ code: 500, message: '获取生成日志失败' });
+  }
+});
+
 router.post('/users', async (req, res) => {
   try {
   const { username, password, points = 0, is_admin = false } = req.body;

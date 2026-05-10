@@ -163,17 +163,28 @@ router.post('/image', generateRateLimit, async (req, res) => {
   let tempReferenceImagePaths = [];
   let pointsCost = config.POINTS_PER_GENERATE;
   let generateRequestKey = null;
+  let parsedWidth = null;
+  let parsedHeight = null;
+  let qualityLevel = 'default';
+  let scene = null;
+  let text = null;
+  let width = 60;
+  let height = 90;
+  let quality = 'default';
+  let referenceImage = null;
+  let feedback = null;
+  let sourceImageId = null;
 
   try {
-    const { scene, text, width = 60, height = 90, quality = 'default', referenceImage, feedback, sourceImageId = null } = req.body;
+    ({ scene, text, width = 60, height = 90, quality = 'default', referenceImage, feedback, sourceImageId = null } = req.body);
     const feedbackText = feedback ? String(feedback).trim() || null : null;
     const referenceImages = Array.isArray(referenceImage)
       ? referenceImage.filter(Boolean).slice(0, 3)
       : (referenceImage ? [referenceImage] : []);
-    const parsedWidth = parsePositiveNumber(width);
-    const parsedHeight = parsePositiveNumber(height);
+    parsedWidth = parsePositiveNumber(width);
+    parsedHeight = parsePositiveNumber(height);
     const validQualities = ['default', '2k', '4k'];
-    const qualityLevel = validQualities.includes(quality) ? quality : 'default';
+    qualityLevel = validQualities.includes(quality) ? quality : 'default';
     pointsCost = qualityLevel === '4k' ? config.POINTS_PER_GENERATE_4K : qualityLevel === '2k' ? config.POINTS_PER_GENERATE_HD : config.POINTS_PER_GENERATE;
 
     // 验证参数
@@ -335,6 +346,16 @@ router.post('/image', generateRateLimit, async (req, res) => {
     }
 
     console.log(`[生成请求:${requestId}] 数据库保存成功 imageId=${imageId}`);
+    db.logGenerationAttempt({
+      userId: req.userId,
+      scene,
+      prompt: text.trim(),
+      width: parsedWidth,
+      height: parsedHeight,
+      quality: qualityLevel,
+      status: 'success',
+      imageId,
+    });
     if (db.getUserImageCount(req.userId) === 1) {
       const inviteReward = db.awardInviteReward(
         req.userId,
@@ -361,6 +382,16 @@ router.post('/image', generateRateLimit, async (req, res) => {
     res.json(responsePayload);
     
   } catch (err) {
+    db.logGenerationAttempt({
+      userId: req.userId || null,
+      scene,
+      prompt: text ? String(text).trim() : null,
+      width: parsedWidth,
+      height: parsedHeight,
+      quality: qualityLevel,
+      status: 'failed',
+      errorMessage: err.message || '生成失败',
+    });
     // 生成失败，退还点数
     const refund = db.updateUserPoints(req.userId, pointsCost);
     if (refund.ok) {
