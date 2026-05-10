@@ -228,6 +228,13 @@ router.post('/image', generateRateLimit, async (req, res) => {
 
     const cached = recentGenerateResults.get(generateRequestKey);
     if (cached) {
+      const missingCachedFile = await Promise.all(
+        cached.imagePaths.map(imagePath => fs.access(path.join(uploadsRoot, imagePath.replace(/^\/uploads\//, ''))).then(() => false).catch(() => true))
+      );
+
+      if (missingCachedFile.some(Boolean)) {
+        recentGenerateResults.delete(generateRequestKey);
+      } else {
       console.log(`[生成请求:${requestId}] 命中近期成功结果缓存 key=${generateRequestKey.slice(0, 8)}`);
       return res.json(buildGenerateResponse({
         imageId: cached.imageId,
@@ -235,6 +242,7 @@ router.post('/image', generateRateLimit, async (req, res) => {
         points: cached.points,
         token: req.token
       }));
+      }
     }
 
     if (activeGenerateRequests.has(generateRequestKey)) {

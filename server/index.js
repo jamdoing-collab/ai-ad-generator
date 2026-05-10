@@ -204,18 +204,18 @@ app.use('/share/image', publicImageRouter);
 app.use('/api/auth', express.json({ limit: '1mb' }), rateLimit, authRoutes);
 app.use('/api/config', configRoutes);
 app.use('/api/user', express.json({ limit: '1mb' }), auth, userRoutes);
-  app.use('/api/generate', express.json({ limit: '10mb' }), auth, generateRoutes);
+app.use('/api/generate', express.json({ limit: '10mb' }), auth, generateRoutes);
 app.use('/api/admin', express.json({ limit: '5mb' }), adminRoutes);
-  app.get('/api/payment/packages', (req, res) => {
-    const packages = Object.entries(config.RECHARGE_PACKAGES).map(([id, pkg]) => ({
-      id,
-      price: (pkg.price / 100).toFixed(2),
-      priceCent: pkg.price,
-      points: pkg.points
-    }));
-    res.json({ code: 0, data: packages });
-  });
-  app.use('/api/payment', express.json({ limit: '1mb' }), auth, paymentRoutes);
+app.get('/api/payment/packages', (req, res) => {
+  const packages = Object.entries(config.RECHARGE_PACKAGES).map(([id, pkg]) => ({
+    id,
+    price: (pkg.price / 100).toFixed(2),
+    priceCent: pkg.price,
+    points: pkg.points
+  }));
+  res.json({ code: 0, data: packages });
+});
+app.use('/api/payment', express.json({ limit: '1mb' }), auth, paymentRoutes);
   
   // 首页
   app.get('/', (req, res) => {
