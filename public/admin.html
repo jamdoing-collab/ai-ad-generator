@@ -179,7 +179,7 @@
     table { width: 100%; min-width: 860px; border-collapse: collapse; table-layout: fixed; }
     th, td { padding: 16px 22px; text-align: left; border-bottom: 1px solid rgba(104, 76, 43, 0.08); }
     th { color: var(--text-soft); font-size: 12px; font-weight: 600; }
-    td { font-size: 14px; vertical-align: top; }
+    td { font-size: 14px; vertical-align: middle; }
 
     .user-table th:nth-child(1), .user-table td:nth-child(1) { width: 26%; }
     .user-table th:nth-child(2), .user-table td:nth-child(2) { width: 12%; }
@@ -204,6 +204,7 @@
     .badge {
       display: inline-flex;
       align-items: center;
+      gap: 6px;
       padding: 5px 10px;
       border-radius: 999px;
       font-size: 12px;
@@ -771,8 +772,8 @@ function renderGenerationLogs() {
     const quality = escapeHtml(log.quality || 'default');
     const errorMessage = escapeHtml(log.error_message || '--');
     const status = log.status === 'success'
-      ? '<span class="badge badge-success">成功</span>'
-      : '<span class="badge badge-danger">失败</span>';
+      ? '<span class="badge badge-success">✅ <span>成功</span></span>'
+      : '<span class="badge badge-danger">❌ <span>失败</span></span>';
     return `
       <tr>
         <td>${formatDate(log.created_at)}</td>
