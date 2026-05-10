@@ -41,55 +41,8 @@ app.use(express.static(path.join(__dirname, '../public')));
 // 引入数据库
 const db = require('./database');
 
-async function startServer() {
-  if (!config.JWT_SECRET) {
-    throw new Error('缺少 JWT_SECRET 环境变量');
-  }
-  if (config.NODE_ENV === 'production' && config.ALLOWED_ORIGINS.length === 0) {
-    throw new Error('生产环境必须配置 ALLOWED_ORIGINS，避免开放任意跨域来源');
-  }
-
-  // 初始化数据库
-  await db.initDatabase();
-  db.setConfiguredAdmins(config.ADMIN_USERNAMES);
-
-  console.log('[启动配置] ALLOWED_ORIGINS =', JSON.stringify(config.ALLOWED_ORIGINS));
-  console.log('[启动配置] ADMIN_BOOTSTRAP_PASSWORD =', process.env.ADMIN_BOOTSTRAP_PASSWORD ? '已设置' : '未设置');
-
-  const bootstrapAdminUsername = (process.env.ADMIN_BOOTSTRAP_USERNAME || 'jamdo').trim();
-  const bootstrapAdminPassword = String(process.env.ADMIN_BOOTSTRAP_PASSWORD || '').trim();
-  const bootstrapForceReset = String(process.env.ADMIN_BOOTSTRAP_FORCE_RESET || '').trim().toLowerCase() === 'true';
-  if (bootstrapAdminPassword) {
-    const adminUser = db.getUserByUsername(bootstrapAdminUsername);
-    const hashedPassword = await bcrypt.hash(bootstrapAdminPassword, 10);
-    if (adminUser) {
-      db.updateUserAdminProfile(adminUser.id, { is_admin: true });
-      if (bootstrapForceReset) {
-        db.updateUserPassword(adminUser.id, hashedPassword);
-        console.log(`[管理员] 已强制重置账号 ${bootstrapAdminUsername} 的启动密码`);
-      } else {
-        console.log(`[管理员] 账号 ${bootstrapAdminUsername} 已存在，跳过密码重置`);
-      }
-    } else {
-      db.createUser(bootstrapAdminUsername, hashedPassword, { points: 100, isAdmin: true });
-      console.log(`[管理员] 已创建账号 ${bootstrapAdminUsername} 并设置启动密码`);
-    }
-  }
-
-  console.log('[数据库] 已就绪');
-  
-  // 引入路由（需要等数据库初始化完成后）
-  const authRoutes = require('./routes/auth');
-  const userRoutes = require('./routes/user');
-  const generateRoutes = require('./routes/generate');
-  const paymentRoutes = require('./routes/payment');
-  const adminRoutes = require('./routes/admin');
-  const configRoutes = require('./routes/config');
-  const auth = require('./middleware/auth');
-  const rateLimit = require('./middleware/rateLimit');
-
 async function resolveImageFilePath(req, { requireOwnership }) {
-  const imageId = parseInt(req.params.id);
+  const imageId = parseInt(req.params.id, 10);
   if (!imageId) return { error: { status: 400, body: { code: 400, message: '无效的图片ID' } } };
 
   const image = db.getImageById(imageId);
@@ -99,16 +52,25 @@ async function resolveImageFilePath(req, { requireOwnership }) {
     return { error: { status: 403, body: { code: 403, message: '无权访问' } } };
   }
 
-  const index = parseInt(req.query.index) || 0;
+  const index = parseInt(req.query.index, 10) || 0;
   const imagePath = image.image_paths[index];
   if (!imagePath) return { error: { status: 404, body: { code: 404, message: '图片不存在' } } };
 
-  const fullPath = path.resolve(__dirname, '../uploads', imagePath.replace(/^\/uploads\//, ''));
-  if (!fullPath.startsWith(path.resolve(__dirname, '../uploads') + path.sep)) {
+  const uploadsRoot = path.resolve(__dirname, '../uploads');
+  const fullPath = path.resolve(uploadsRoot, imagePath.replace(/^\/uploads\//, ''));
+  if (!fullPath.startsWith(uploadsRoot + path.sep)) {
     return { error: { status: 403, body: { code: 403, message: '非法图片路径' } } };
   }
 
-  return { fullPath };
+  try {
+    const realPath = await fs.promises.realpath(fullPath);
+    if (!realPath.startsWith(uploadsRoot + path.sep)) {
+      return { error: { status: 403, body: { code: 403, message: '非法图片路径' } } };
+    }
+    return { fullPath: realPath };
+  } catch {
+    return { error: { status: 404, body: { code: 404, message: '图片不存在' } } };
+  }
 }
 
 async function sendThumbResponse(req, res, { cacheControl, errorLabel, requireOwnership }) {
@@ -143,6 +105,57 @@ async function sendImageResponse(req, res, { cacheControl, errorLabel, requireOw
     res.status(500).json({ code: 500, message: '获取图片失败' });
   }
 }
+
+async function startServer() {
+  if (!config.JWT_SECRET) {
+    throw new Error('缺少 JWT_SECRET 环境变量');
+  }
+  if (config.NODE_ENV === 'production' && config.ALLOWED_ORIGINS.length === 0) {
+    throw new Error('生产环境必须配置 ALLOWED_ORIGINS，避免开放任意跨域来源');
+  }
+  if (config.NODE_ENV === 'production' && config.JWT_FALLBACK_SECRETS.length > 0) {
+    console.warn('[配置警告] 生产环境建议清空 JWT_FALLBACK_SECRETS');
+  }
+
+  // 初始化数据库
+  await db.initDatabase();
+  db.setConfiguredAdmins(config.ADMIN_USERNAMES);
+
+  console.log('[启动配置] ALLOWED_ORIGINS =', JSON.stringify(config.ALLOWED_ORIGINS));
+  console.log('[启动配置] ADMIN_BOOTSTRAP_PASSWORD =', process.env.ADMIN_BOOTSTRAP_PASSWORD ? '已设置' : '未设置');
+
+  const bootstrapAdminUsername = (process.env.ADMIN_BOOTSTRAP_USERNAME || 'jamdo').trim();
+  const bootstrapAdminPassword = String(process.env.ADMIN_BOOTSTRAP_PASSWORD || '').trim();
+  const bootstrapForceReset = String(process.env.ADMIN_BOOTSTRAP_FORCE_RESET || '').trim().toLowerCase() === 'true';
+  if (bootstrapAdminPassword) {
+    const adminUser = db.getUserByUsername(bootstrapAdminUsername);
+    if (adminUser) {
+      db.updateUserAdminProfile(adminUser.id, { is_admin: true });
+      if (bootstrapForceReset) {
+        const hashedPassword = await bcrypt.hash(bootstrapAdminPassword, 10);
+        db.updateUserPassword(adminUser.id, hashedPassword);
+        console.log(`[管理员] 已强制重置账号 ${bootstrapAdminUsername} 的启动密码`);
+      } else {
+        console.log(`[管理员] 账号 ${bootstrapAdminUsername} 已存在，跳过密码重置`);
+      }
+    } else {
+      const hashedPassword = await bcrypt.hash(bootstrapAdminPassword, 10);
+      db.createUser(bootstrapAdminUsername, hashedPassword, { points: 100, isAdmin: true });
+      console.log(`[管理员] 已创建账号 ${bootstrapAdminUsername} 并设置启动密码`);
+    }
+  }
+
+  console.log('[数据库] 已就绪');
+  
+  // 引入路由（需要等数据库初始化完成后）
+  const authRoutes = require('./routes/auth');
+  const userRoutes = require('./routes/user');
+  const generateRoutes = require('./routes/generate');
+  const paymentRoutes = require('./routes/payment');
+  const adminRoutes = require('./routes/admin');
+  const configRoutes = require('./routes/config');
+  const auth = require('./middleware/auth');
+  const rateLimit = require('./middleware/rateLimit');
 
 // 缩略图（需登录，仅可访问自己图片）
 const thumbRouter = express.Router();
