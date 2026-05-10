@@ -128,16 +128,19 @@ gap: 12px;
 .brand-mark {
 width: 40px;
 height: 40px;
-border-radius: 14px;
+border-radius: 12px;
 display: inline-flex;
 align-items: center;
 justify-content: center;
-color: #fff;
-font-size: 12px;
-font-weight: 700;
-letter-spacing: 0.08em;
+flex-shrink: 0;
 background: linear-gradient(135deg, var(--primary) 0%, #e29a54 100%);
 box-shadow: 0 12px 24px rgba(196, 104, 44, 0.22);
+}
+
+.brand-mark img {
+ width: 72%;
+ height: 72%;
+  display: block;
 }
 
 .brand-copy {
