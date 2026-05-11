@@ -509,6 +509,18 @@ let currentUserId = null;
 let authExpiredNotified = false;
 let settingsLoaded = false;
 
+const MATERIAL_NAME_MAP = {
+  poster: '活动海报',
+  menu: '餐饮菜单',
+  rollup: '易拉宝',
+  wall: '文化墙',
+  brochure: '宣传册封面',
+  flyer: '宣传单页',
+  door: '门头招牌',
+  ecom: '电商主图',
+  moment: '朋友圈配图',
+};
+
 const $ = id => document.getElementById(id);
 
 const HTML_ESCAPE_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
@@ -767,7 +779,7 @@ function renderGenerationLogs() {
   addClass('generationLogEmptyState', 'hidden');
   tableBody.innerHTML = filteredLogs.map(log => {
     const username = escapeHtml(log.username || `用户#${log.user_id || '--'}`);
-    const scene = escapeHtml(log.scene || '--');
+    const scene = escapeHtml(MATERIAL_NAME_MAP[log.scene] || log.scene || '--');
     const size = log.width && log.height ? `${log.width}×${log.height}` : '--';
     const quality = escapeHtml(log.quality || 'default');
     const errorMessage = escapeHtml(log.error_message || '--');
