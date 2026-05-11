@@ -79,6 +79,10 @@ function getCurrentCost() {
   return getCurrentQualityConfig().cost;
 }
 
+function getModifyCost() {
+  return 1;
+}
+
 const QUALITY_HINTS = {
   default: { cost: 1, text: 'AI创作中...', sub: '预计需要15-30秒', label: '1K，消耗 1 点' },
   '2k': { cost: 2, text: 'AI高清创作中...', sub: '预计需要30-60秒', label: '2K，消耗 2 点' },
@@ -178,7 +182,7 @@ function applyDetailResult({ scene, text, width, height, quality = 'default', im
 function openModifyModal(mode) {
   currentDetailMode = mode;
   setText('modifyModalTitle', '修改图片');
-  setText('modifyCost', getCurrentCost());
+  setText('modifyCost', getModifyCost());
   if ($('modifyFeedbackInput')) $('modifyFeedbackInput').value = '';
   if ($('modifySubmitBtn')) {
     $('modifySubmitBtn').disabled = true;
@@ -341,12 +345,14 @@ async function init() {
 async function handleDetailHash() {
   const shareId = getShareImageId();
   if (shareId) {
+    if (currentResultImageId === shareId && currentSharedDetail) return;
     await loadPublicDetailById(shareId);
     return;
   }
   const detail = parseDetailHash();
   if (!detail || !authToken) return;
   if (detail.mode === 'history') {
+    if (currentResultImageId === detail.id) return;
     await loadHistoryDetailById(detail.id);
   }
 }
@@ -769,7 +775,7 @@ function waitForImageLoad(url) {
 }
 
 function updateTweakCost() {
-  if ($('modifyCost')) $('modifyCost').textContent = getCurrentCost();
+  if ($('modifyCost')) $('modifyCost').textContent = getModifyCost();
 }
 
 function onResultDotClick(event) {
@@ -819,6 +825,7 @@ async function startGenerate() {
   const height = parseFloat($('sizeHeight').value);
   const msg = getCurrentQualityConfig();
 
+  detailReturnTarget = 'generate';
   showDetailLoading(msg.text, msg.sub);
   $('genBtn').disabled = true;
   $('genBtn').textContent = '生成中...';
@@ -887,7 +894,7 @@ async function regenerateCurrentDetail(mode) {
 
   const feedback = ($('modifyFeedbackInput').value || '').trim();
   if (!feedback) { showToast('请输入修改要求'); return; }
-  const needPoints = getCurrentCost();
+  const needPoints = getModifyCost();
   if (userInfo.points < needPoints) { showToast('点数不足，请充值'); showRechargeModal(); return; }
 
   isGenerating = true;

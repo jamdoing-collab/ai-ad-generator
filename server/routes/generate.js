@@ -185,7 +185,14 @@ router.post('/image', generateRateLimit, async (req, res) => {
     parsedHeight = parsePositiveNumber(height);
     const validQualities = ['default', '2k', '4k'];
     qualityLevel = validQualities.includes(quality) ? quality : 'default';
-    pointsCost = qualityLevel === '4k' ? config.POINTS_PER_GENERATE_4K : qualityLevel === '2k' ? config.POINTS_PER_GENERATE_HD : config.POINTS_PER_GENERATE;
+    const isEditFlow = Boolean(sourceImageId || feedbackText);
+    pointsCost = isEditFlow
+      ? config.POINTS_PER_GENERATE
+      : qualityLevel === '4k'
+        ? config.POINTS_PER_GENERATE_4K
+        : qualityLevel === '2k'
+          ? config.POINTS_PER_GENERATE_HD
+          : config.POINTS_PER_GENERATE;
 
     // 验证参数
     if (!text || text.trim().length === 0) {
@@ -235,10 +242,20 @@ router.post('/image', generateRateLimit, async (req, res) => {
       if (missingCachedFile.some(Boolean)) {
         recentGenerateResults.delete(generateRequestKey);
       } else {
-      console.log(`[生成请求:${requestId}] 命中近期成功结果缓存 key=${generateRequestKey.slice(0, 8)}`);
-      return res.json(buildGenerateResponse({
-        imageId: cached.imageId,
-        imagePaths: cached.imagePaths,
+        db.logGenerationAttempt({
+          userId: req.userId,
+          scene,
+          prompt: text.trim(),
+          width: parsedWidth,
+          height: parsedHeight,
+          quality: qualityLevel,
+          status: 'success',
+          imageId: cached.imageId,
+        });
+        console.log(`[生成请求:${requestId}] 命中近期成功结果缓存 key=${generateRequestKey.slice(0, 8)}`);
+        return res.json(buildGenerateResponse({
+          imageId: cached.imageId,
+          imagePaths: cached.imagePaths,
         points: cached.points,
         token: req.token
       }));
