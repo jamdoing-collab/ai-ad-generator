@@ -862,7 +862,7 @@ async function startGenerate() {
       updateMineDisplay();
       detailReturnTarget = 'generate';
       applyHistoryDetailView(item, { canEdit: true, title: '详情' });
-      window.location.hash = `history-${currentResultImageId}`;
+      history.replaceState(null, '', `#history-${currentResultImageId}`);
     } else {
       const msg = res.code === 503
         ? (res.message || '服务暂不可用，请稍后重试')
@@ -948,7 +948,7 @@ async function regenerateCurrentDetail(mode) {
         showResultImage(0);
       }
       updateMineDisplay();
-      window.location.hash = `${mode}-${currentResultImageId}`;
+      history.replaceState(null, '', `#${mode}-${currentResultImageId}`);
       showToast('调整完成');
     } else {
       const msg = res.code === 503
@@ -1323,7 +1323,7 @@ async function loadHistory() {
 function loadHistoryDetail(item) {
   detailReturnTarget = 'history';
   applyHistoryDetailView(item, { canEdit: true, title: '详情' });
-  window.location.hash = `history-${item.id}`;
+  history.replaceState(null, '', `#history-${item.id}`);
 }
 
 function showConfirm(message, onOk) {
