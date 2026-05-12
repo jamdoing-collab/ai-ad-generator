@@ -996,7 +996,7 @@ function setDetailActionsVisible(canEdit) {
   const isShare = Boolean(getShareImageId());
   const loggedIn = Boolean(authToken && userInfo);
   const showActionBtns = !isShare || loggedIn;
-  setDisplay('detailModifyBtn', canEdit ? '' : 'none');
+  setDisplay('detailModifyBtn', showActionBtns ? '' : 'none');
   setDisplay('detailSaveBtn', showActionBtns ? '' : 'none');
   setDisplay('detailShareBtn', showActionBtns ? '' : 'none');
   setDisplay('detailLoginBtn', isShare && !loggedIn ? 'block' : 'none');
