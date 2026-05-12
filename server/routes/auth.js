@@ -150,8 +150,8 @@ router.post('/login', async (req, res) => {
     // 登录成功，清除该用户名的失败计数
     clearLoginAttempts(normalizedUsername);
     
-    // 使该用户的所有旧session失效，防止session固定攻击
-    db.deleteSessionByUserId(user.id);
+  // 不再清除该用户所有session，支持多设备同时登录
+  // 旧session会自然过期（7天），无需手动清除
     
     // 生成 token
     const token = jwt.sign(
