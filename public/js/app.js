@@ -994,10 +994,12 @@ function showPage(page) {
 
 function setDetailActionsVisible(canEdit) {
   const isShare = Boolean(getShareImageId());
+  const loggedIn = Boolean(authToken && userInfo);
+  const showActionBtns = !isShare || loggedIn;
   setDisplay('detailModifyBtn', canEdit ? '' : 'none');
-  setDisplay('detailSaveBtn', '');
-  setDisplay('detailShareBtn', '');
-  setDisplay('detailLoginBtn', isShare && !canEdit ? 'block' : 'none');
+  setDisplay('detailSaveBtn', showActionBtns ? '' : 'none');
+  setDisplay('detailShareBtn', showActionBtns ? '' : 'none');
+  setDisplay('detailLoginBtn', isShare && !loggedIn ? 'block' : 'none');
 }
 
 async function loadHistoryDetailById(imageId) {
