@@ -385,7 +385,7 @@ async function loadUserInfo() {
     authExpiredNotified = false;
     updateMineDisplay();
     if (currentSharedDetail && getShareImageId()) {
-      const canEdit = Boolean(userInfo && currentSharedDetail.ownerUserId === userInfo.id);
+      const canEdit = Boolean(userInfo);
       applyHistoryDetailView(currentSharedDetail, { canEdit, title: '详情' });
     }
   } else if (res.code !== 401) {
@@ -995,8 +995,8 @@ function showPage(page) {
 function setDetailActionsVisible(canEdit) {
   const isShare = Boolean(getShareImageId());
   setDisplay('detailModifyBtn', canEdit ? '' : 'none');
-  setDisplay('detailSaveBtn', isShare ? 'none' : '');
-  setDisplay('detailShareBtn', isShare ? 'none' : '');
+  setDisplay('detailSaveBtn', '');
+  setDisplay('detailShareBtn', '');
   setDisplay('detailLoginBtn', isShare && !canEdit ? 'block' : 'none');
 }
 

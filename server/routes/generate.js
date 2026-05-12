@@ -60,6 +60,13 @@ async function uploadToImageHost(filePath) {
 // 可用的场景类型（从统一物料数据源生成）
 const VALID_SCENES = openai.MATERIALS.map(m => m.key);
 
+function requireAuth(req, res, next) {
+  if (!req.userId) {
+    return res.status(401).json({ code: 401, message: '未登录' });
+  }
+  next();
+}
+
 function formatImageDetail(image, { imageUrlBuilder, thumbUrl, includeOwnerUserId = false }) {
   const detail = {
     id: image.id,
@@ -153,10 +160,7 @@ function resolveUploadPath(uploadPath) {
 }
 
 // 生成图片
-router.post('/image', generateRateLimit, async (req, res) => {
-  if (!req.userId) {
-    return res.status(401).json({ code: 401, message: '未登录' });
-  }
+router.post('/image', requireAuth, generateRateLimit, async (req, res) => {
 
   const requestId = uuidv4().slice(0, 8);
   let referenceImagePaths = [];
@@ -447,7 +451,7 @@ router.post('/image', generateRateLimit, async (req, res) => {
 });
 
 // 我的生成记录
-router.get('/history', async (req, res) => {
+router.get('/history', requireAuth, async (req, res) => {
   const limit = Math.min(Math.max(parseInt(req.query.limit) || 20, 1), 100);
   const offset = Math.max(parseInt(req.query.offset) || 0, 0);
   const images = db.getUserImages(req.userId, limit, offset);
@@ -461,7 +465,7 @@ router.get('/history', async (req, res) => {
   res.json({ code: 0, data });
 });
 
-router.get('/history/:id', async (req, res) => {
+router.get('/history/:id', requireAuth, async (req, res) => {
   const imageId = parseInt(req.params.id, 10);
   if (!imageId) {
     return res.status(400).json({ code: 400, message: '无效的图片ID' });
