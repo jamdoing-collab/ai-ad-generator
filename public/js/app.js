@@ -299,11 +299,13 @@ async function api(endpoint, options = {}) {
     return { code: -1, message: '服务器响应异常' };
   }
   if (data.code === 401) {
+    authToken = null;
     userInfo = null;
+    localStorage.removeItem('token');
     updateMineDisplay();
     if (!authExpiredNotified && !getShareImageId()) {
       authExpiredNotified = true;
-      showToast('登录状态校验失败，请重新登录');
+      showToast('登录已过期，请重新登录');
       showLoginModal();
     }
   }
