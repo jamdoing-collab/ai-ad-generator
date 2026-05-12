@@ -76,3 +76,96 @@ ADMIN_BOOTSTRAP_FORCE_RESET=true
 - 数据库：`better-sqlite3` 或 PostgreSQL
 - 上传文件：对象存储 / 图床
 - 鉴权：微信登录 / 短信登录
+
+## GitHub 自动部署到 ECS（推荐）
+
+如果你希望以后本地改完代码后，只要 push 到 GitHub 就自动更新服务器，建议改成 Git 驱动的部署，而不是继续手工上传 `/root/web`。
+
+### 1. 先在服务器上把项目目录改成 Git 仓库
+
+当前 `/root/web` 如果不是 `git clone` 下来的，GitHub Actions 无法直接远程执行 `git pull`。建议先：
+
+1. 备份当前目录
+2. 用仓库重新 clone 到服务器
+3. 把现有 `.env`、上传目录、数据文件按需迁回
+
+例如：
+
+```bash
+mv /root/web /root/web.backup.$(date +%Y%m%d%H%M%S)
+git clone https://github.com/jamdoing-collab/ai-ad-generator.git /root/web
+```
+
+然后把生产环境的：
+
+- `server/.env`
+- `data/`
+- `uploads/`
+
+从备份目录迁回。
+
+### 2. 在服务器上放置部署脚本
+
+把仓库里的脚本上传/复制到：
+
+```bash
+/root/deploy-ai-ad-generator.sh
+```
+
+并赋予执行权限：
+
+```bash
+chmod +x /root/deploy-ai-ad-generator.sh
+```
+
+脚本内容来自仓库：
+
+```bash
+scripts/deploy-server.sh
+```
+
+### 3. 在 GitHub 仓库里配置 Secrets
+
+进入 GitHub 仓库：
+
+```text
+Settings -> Secrets and variables -> Actions
+```
+
+新增以下 Secrets：
+
+- `ECS_HOST`：服务器公网 IP，例如 `47.106.106.166`
+- `ECS_USER`：登录用户，例如 `root`
+- `ECS_SSH_KEY`：用于登录服务器的私钥内容（推荐单独部署用 SSH key）
+
+### 4. 工作流生效方式
+
+仓库已包含：
+
+```text
+.github/workflows/deploy.yml
+```
+
+作用：当 `main` 分支有新提交时，GitHub Actions 会通过 SSH 登录 ECS，并执行：
+
+```bash
+bash /root/deploy-ai-ad-generator.sh
+```
+
+### 5. 自动部署完成后会做什么
+
+部署脚本默认会：
+
+1. `git fetch` / `reset --hard origin/main`
+2. `npm install --omit=dev`
+3. `pm2 restart ai-ad-generator --update-env`
+4. `pm2 save`
+5. 如已安装 Nginx，则 `nginx -t && systemctl reload nginx`
+6. 本机 `curl http://127.0.0.1:3003` 健康检查
+
+### 6. 注意事项
+
+- 服务器必须已安装：`git`、`node`、`npm`、`pm2`
+- `/root/web` 必须是真正的 Git 仓库，而不是手工上传目录
+- `server/.env` 不建议提交到 GitHub，应保留在服务器本地
+- 如果使用 `SQL.js + data/ + uploads/`，部署时要注意这些目录的持久化和备份
