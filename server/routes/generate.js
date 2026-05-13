@@ -60,11 +60,16 @@ async function uploadToImageHost(filePath) {
 // 可用的场景类型（从统一物料数据源生成）
 const VALID_SCENES = openai.MATERIALS.map(m => m.key);
 
+const auth = require('../middleware/auth');
+
 function requireAuth(req, res, next) {
-  if (!req.userId) {
-    return res.status(401).json({ code: 401, message: '未登录' });
-  }
-  next();
+  auth(req, res, (err) => {
+    if (err) return next(err);
+    if (!req.userId) {
+      return res.status(401).json({ code: 401, message: '未登录' });
+    }
+    next();
+  });
 }
 
 function formatImageDetail(image, { imageUrlBuilder, thumbUrl, includeOwnerUserId = false }) {
