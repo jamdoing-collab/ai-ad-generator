@@ -1078,6 +1078,10 @@ async function doLogin(username, password, options = {}) {
     }
     updateMineDisplay();
     showToast(isRegister ? '注册成功' : '登录成功');
+    const currentPage = document.querySelector('.page.active')?.id;
+    if (currentPage === 'history' || historyLoadFailed) {
+      loadHistory();
+    }
     if (typeof options.onSuccess === 'function') {
       options.onSuccess();
     }
@@ -1265,6 +1269,11 @@ async function loadMoreHistory(listEl) {
 
   try {
     const res = await api(`/generate/history?limit=${HISTORY_BATCH}&offset=${historyOffset}`);
+    if (res.code === 401) {
+      historyLoadFailed = true;
+      historyDone = true;
+      return;
+    }
     if (res.code !== 0 || !res.data?.length) {
       historyDone = true;
       return;
