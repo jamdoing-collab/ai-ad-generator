@@ -1078,6 +1078,9 @@ async function doLogin(username, password, options = {}) {
     }
     updateMineDisplay();
     showToast(isRegister ? '注册成功' : '登录成功');
+    if (getShareImageId()) {
+      setDetailActionsVisible(Boolean(userInfo));
+    }
     const currentPage = document.querySelector('.page.active')?.id;
     if (currentPage === 'history' || historyLoadFailed) {
       loadHistory();
